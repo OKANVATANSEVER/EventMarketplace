@@ -1,0 +1,26 @@
+@using Microsoft.AspNetCore.Components.Authorization
+@inject NavigationManager Nav
+
+<header class="em-header">
+    <div class="em-header-inner">
+        <a class="em-logo" href="/">🎟 EventMarketplace</a>
+        <nav class="em-nav">
+            <a href="/events">Etkinlikler</a>
+            <AuthorizeView>
+                <Authorized Context="authCtx">
+                    <AuthorizeView Roles="Admin">
+                        <a href="/admin/dashboard" class="em-nav-admin">Admin Panel</a>
+                    </AuthorizeView>
+                    <form method="post" action="/logout">
+                        <AntiforgeryToken />
+                        <button type="submit" class="em-btn-link">Çıkış (@authCtx.User.Identity?.Name)</button>
+                    </form>
+                </Authorized>
+                <NotAuthorized>
+                    <a href="/login">Giriş Yap</a>
+                    <a href="/register" class="em-btn-primary">Kayıt Ol</a>
+                </NotAuthorized>
+            </AuthorizeView>
+        </nav>
+    </div>
+</header>

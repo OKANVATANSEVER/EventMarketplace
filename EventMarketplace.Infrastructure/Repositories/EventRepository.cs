@@ -62,4 +62,57 @@ public sealed class EventRepository(ApplicationDbContext dbContext) : IEventRepo
 
             return new PagedResult<EventListItemDto>(items, page, pageSize, totalCount);
     }
+
+    public async Task<IList<EventListItemDto>> GetEventsStartingAfterAsync(
+        DateTime after,
+        CancellationToken cancellationToken = default)
+    {
+        return await dbContext.Events
+            .AsNoTracking()
+            .Where(e => e.StartDate >= after)
+            .Select(e => new EventListItemDto(
+                e.Id,
+                e.Title,
+                e.Price,
+                e.StartDate,
+                e.City,
+                e.Category != null ? e.Category.Name : string.Empty,
+                e.IsFeatured))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IList<CategoryEventCountDto>> GetEventCountByCategoryAsync(
+        DateTime after,
+        CancellationToken cancellationToken = default)
+    {
+        return await dbContext.Events
+            .AsNoTracking()
+            .Include(e => e.Category)
+            .Where(e => e.StartDate >= after)
+            .GroupBy(e => e.Category != null ? e.Category.Name : "Kategorisiz")
+            .Select(g => new CategoryEventCountDto(g.Key, g.Count()))
+            .OrderByDescending(x => x.EventCount)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IList<MonthlySummaryDto>> GetMonthlyEventSummaryAsync(
+        DateTime from,
+        CancellationToken cancellationToken = default)
+    {
+        var raw = await dbContext.Events
+            .AsNoTracking()
+            .Where(e => e.StartDate >= from)
+            .GroupBy(e => new { e.StartDate.Year, e.StartDate.Month })
+            .Select(g => new { g.Key.Year, g.Key.Month, Count = g.Count() })
+            .ToListAsync(cancellationToken);
+
+        return raw
+            .Select(m => new MonthlySummaryDto(
+                m.Year,
+                m.Month,
+                new DateTime(m.Year, m.Month, 1).ToString("MMM yyyy"),
+                m.Count))
+            .OrderBy(m => m.Year).ThenBy(m => m.Month)
+            .ToList<MonthlySummaryDto>();
+    }
 }

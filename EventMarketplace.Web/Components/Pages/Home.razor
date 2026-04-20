@@ -1,0 +1,40 @@
+@page "/"
+@layout MainLayout
+@using EventMarketplace.Application.Repositories
+@using EventMarketplace.Application.DTOs
+@inject IEventRepository EventRepo
+
+<PageTitle>EventMarketplace – Etkinlikleri Keşfet</PageTitle>
+
+<section class="em-hero">
+    <div class="em-hero-content">
+        <h1>🎟 Etkinlikleri Keşfet</h1>
+        <p>Konserlere, konferanslara, seminerlere ve daha fazlasına katıl.</p>
+        <a href="/events" class="em-btn-primary em-btn-lg">Tüm Etkinlikler</a>
+    </div>
+</section>
+
+@if (_featured.Any())
+{
+    <section class="em-section">
+        <div class="em-section-inner">
+            <h2>⭐ Öne Çıkan Etkinlikler</h2>
+            <div class="em-events-grid">
+                @foreach (var ev in _featured)
+                {
+                    <EventCard Event="ev" />
+                }
+            </div>
+        </div>
+    </section>
+}
+
+@code {
+    private List<EventListItemDto> _featured = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await EventRepo.GetFilteredAsync(null, null, true, 1, 6);
+        _featured = result.Items.ToList();
+    }
+}

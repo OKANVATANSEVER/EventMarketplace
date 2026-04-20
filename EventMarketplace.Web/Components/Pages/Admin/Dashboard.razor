@@ -1,0 +1,194 @@
+@page "/admin/dashboard"
+@layout AdminLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+@using EventMarketplace.Application.DTOs
+@using EventMarketplace.Web.Services
+@inject AdminStatsService StatsService
+
+<PageTitle>Admin Dashboard</PageTitle>
+
+@if (_loading)
+{
+    <div class="em-loading">
+        <div class="em-spinner"></div>
+        <p>Veriler yükleniyor...</p>
+    </div>
+}
+else if (_stats is null)
+{
+    <div class="em-alert em-alert-error">Veriler yüklenemedi.</div>
+}
+else
+{
+    <div class="em-dashboard">
+        <h1 class="em-page-title">📊 Dashboard</h1>
+        <p class="em-page-subtitle">@DateTime.Now.ToString("MMMM yyyy") özeti</p>
+
+        <!-- KPI Cards -->
+        <div class="em-kpi-grid">
+            <div class="em-kpi-card em-kpi-purple">
+                <div class="em-kpi-icon">👥</div>
+                <div>
+                    <div class="em-kpi-value">@_stats.TotalMembers</div>
+                    <div class="em-kpi-label">Toplam Üye</div>
+                </div>
+            </div>
+            <div class="em-kpi-card em-kpi-green">
+                <div class="em-kpi-icon">🆕</div>
+                <div>
+                    <div class="em-kpi-value">@_stats.NewMembersThisMonth</div>
+                    <div class="em-kpi-label">Bu Ay Yeni Üye</div>
+                </div>
+            </div>
+            <div class="em-kpi-card em-kpi-blue">
+                <div class="em-kpi-icon">🎪</div>
+                <div>
+                    <div class="em-kpi-value">@_stats.TotalEventsThisMonth</div>
+                    <div class="em-kpi-label">Bu Ayki Etkinlik</div>
+                </div>
+            </div>
+            <div class="em-kpi-card em-kpi-orange">
+                <div class="em-kpi-icon">📂</div>
+                <div>
+                    <div class="em-kpi-value">@_stats.EventsByCategory.Count</div>
+                    <div class="em-kpi-label">Aktif Kategori</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="em-dashboard-grid">
+            <!-- Kategori Dağılımı -->
+            <div class="em-card">
+                <div class="em-card-header">
+                    <h2>🏷 Bu Ay Kategorilere Göre Etkinlikler</h2>
+                </div>
+                <div class="em-card-body">
+                    @if (!_stats.EventsByCategory.Any())
+                    {
+                        <p class="em-empty">Bu ay henüz etkinlik bulunmuyor.</p>
+                    }
+                    else
+                    {
+                        <table class="em-table">
+                            <thead>
+                                <tr>
+                                    <th>Kategori</th>
+                                    <th>Etkinlik Sayısı</th>
+                                    <th>Oran</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var cat in _stats.EventsByCategory)
+                                {
+                                    var pct = _stats.TotalEventsThisMonth > 0
+                                        ? (int)((double)cat.EventCount / _stats.TotalEventsThisMonth * 100)
+                                        : 0;
+                                    <tr>
+                                        <td><span class="em-badge">@cat.CategoryName</span></td>
+                                        <td><strong>@cat.EventCount</strong></td>
+                                        <td>
+                                            <div class="em-progress">
+                                                <div class="em-progress-bar" style="width: @pct%"></div>
+                                            </div>
+                                            <small>%@pct</small>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </div>
+            </div>
+
+            <!-- Aylık Etkinlik Grafiği -->
+            <div class="em-card">
+                <div class="em-card-header">
+                    <h2>📈 Son 12 Ay Etkinlik Trendi</h2>
+                </div>
+                <div class="em-card-body">
+                    @if (!_stats.MonthlyEventSummary.Any())
+                    {
+                        <p class="em-empty">Henüz yeterli veri bulunmuyor.</p>
+                    }
+                    else
+                    {
+                        var maxCount = _stats.MonthlyEventSummary.Max(m => m.EventCount);
+                        <div class="em-bar-chart">
+                            @foreach (var month in _stats.MonthlyEventSummary)
+                            {
+                                var height = maxCount > 0 ? (int)((double)month.EventCount / maxCount * 100) : 0;
+                                <div class="em-bar-item">
+                                    <div class="em-bar-wrap">
+                                        <div class="em-bar" style="height: @height%;" title="@month.EventCount etkinlik"></div>
+                                    </div>
+                                    <div class="em-bar-label">@month.MonthName</div>
+                                    <div class="em-bar-value">@month.EventCount</div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Bu Ay Kayıt Olan Yeni Üyeler -->
+        <div class="em-card em-mt">
+            <div class="em-card-header">
+                <h2>🆕 Bu Ay Kayıt Olan Üyeler</h2>
+                <a href="/admin/members" class="em-btn-link">Tümünü Gör →</a>
+            </div>
+            <div class="em-card-body">
+                @if (!_stats.NewMembers.Any())
+                {
+                    <p class="em-empty">Bu ay henüz yeni üye kaydı yok.</p>
+                }
+                else
+                {
+                    <table class="em-table">
+                        <thead>
+                            <tr>
+                                <th>Ad Soyad</th>
+                                <th>E-posta</th>
+                                <th>Rol</th>
+                                <th>Kayıt Tarihi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var member in _stats.NewMembers)
+                            {
+                                <tr>
+                                    <td>@member.FirstName @member.LastName</td>
+                                    <td>@member.Email</td>
+                                    <td>
+                                        @foreach (var role in member.Roles)
+                                        {
+                                            <span class="em-badge em-badge-role">@role</span>
+                                        }
+                                    </td>
+                                    <td>@member.CreatedDate.ToString("dd.MM.yyyy HH:mm")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private AdminDashboardStatsDto? _stats;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _stats = await StatsService.GetDashboardStatsAsync();
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}

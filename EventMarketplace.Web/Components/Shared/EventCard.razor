@@ -1,0 +1,27 @@
+@using EventMarketplace.Application.DTOs
+
+<div class="em-event-card">
+    @if (Event.IsFeatured)
+    {
+        <div class="em-event-card-featured">⭐ Öne Çıkan</div>
+    }
+    <div class="em-event-card-body">
+        <span class="em-badge">@Event.CategoryName</span>
+        <h3 class="em-event-card-title">@Event.Title</h3>
+        <div class="em-event-card-meta">
+            <span>📅 @Event.StartDate.ToString("dd MMM yyyy")</span>
+            <span>📍 @Event.City</span>
+        </div>
+    </div>
+    <div class="em-event-card-footer">
+        <span class="em-event-price">
+            @(Event.Price == 0 ? "Ücretsiz" : $"₺{Event.Price:N2}")
+        </span>
+        <a href="/events/@Event.Id" class="em-btn-outline em-btn-sm">İncele →</a>
+    </div>
+</div>
+
+@code {
+    [Parameter, System.ComponentModel.DataAnnotations.Required]
+    public EventListItemDto Event { get; set; } = default!;
+}

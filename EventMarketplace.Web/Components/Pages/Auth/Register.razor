@@ -1,0 +1,136 @@
+@page "/register"
+@layout MainLayout
+@using EventMarketplace.Infrastructure.Identity
+@using Microsoft.AspNetCore.Identity
+@inject UserManager<UserApp> UserManager
+@inject SignInManager<UserApp> SignInManager
+@inject NavigationManager Nav
+
+<PageTitle>Kayıt Ol</PageTitle>
+
+<div class="em-auth-container">
+    <div class="em-auth-card">
+        <div class="em-auth-header">
+            <h1>🎟 Kayıt Ol</h1>
+            <p>Yeni bir hesap oluşturun</p>
+        </div>
+
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <div class="em-alert em-alert-error">@_errorMessage</div>
+        }
+        @if (_success)
+        {
+            <div class="em-alert em-alert-success">Kayıt başarılı! Giriş yapabilirsiniz.</div>
+        }
+
+        <EditForm Model="_model" OnValidSubmit="HandleRegister" FormName="registerForm">
+            <DataAnnotationsValidator />
+            <div class="em-form-row">
+                <div class="em-form-group">
+                    <label>Ad</label>
+                    <InputText @bind-Value="_model.FirstName" class="em-input" placeholder="Adınız" />
+                    <ValidationMessage For="() => _model.FirstName" />
+                </div>
+                <div class="em-form-group">
+                    <label>Soyad</label>
+                    <InputText @bind-Value="_model.LastName" class="em-input" placeholder="Soyadınız" />
+                    <ValidationMessage For="() => _model.LastName" />
+                </div>
+            </div>
+            <div class="em-form-group">
+                <label>E-posta</label>
+                <InputText @bind-Value="_model.Email" class="em-input" placeholder="ornek@mail.com" autocomplete="email" />
+                <ValidationMessage For="() => _model.Email" />
+            </div>
+            <div class="em-form-group">
+                <label>Şifre</label>
+                <InputText @bind-Value="_model.Password" type="password" class="em-input" placeholder="En az 6 karakter" autocomplete="new-password" />
+                <ValidationMessage For="() => _model.Password" />
+            </div>
+            <div class="em-form-group">
+                <label>Şifre Tekrar</label>
+                <InputText @bind-Value="_model.ConfirmPassword" type="password" class="em-input" placeholder="Şifrenizi tekrar girin" autocomplete="new-password" />
+                <ValidationMessage For="() => _model.ConfirmPassword" />
+            </div>
+            <button type="submit" class="em-btn-primary em-btn-full" disabled="@_loading">
+                @(_loading ? "Kayıt yapılıyor..." : "Kayıt Ol")
+            </button>
+        </EditForm>
+
+        <p class="em-auth-footer">
+            Hesabınız var mı? <a href="/login">Giriş Yapın</a>
+        </p>
+    </div>
+</div>
+
+@code {
+    private readonly RegisterModel _model = new();
+    private string _errorMessage = string.Empty;
+    private bool _loading;
+    private bool _success;
+
+    private async Task HandleRegister()
+    {
+        _loading = true;
+        _errorMessage = string.Empty;
+
+        if (_model.Password != _model.ConfirmPassword)
+        {
+            _errorMessage = "Şifreler eşleşmiyor.";
+            _loading = false;
+            return;
+        }
+
+        var existing = await UserManager.FindByEmailAsync(_model.Email);
+        if (existing is not null)
+        {
+            _errorMessage = "Bu e-posta adresi zaten kayıtlı.";
+            _loading = false;
+            return;
+        }
+
+        var user = new UserApp
+        {
+            UserName = _model.Email,
+            Email = _model.Email,
+            FirstName = _model.FirstName,
+            LastName = _model.LastName,
+            CreatedDate = DateTime.UtcNow
+        };
+
+        var result = await UserManager.CreateAsync(user, _model.Password);
+        if (!result.Succeeded)
+        {
+            _errorMessage = string.Join(" ", result.Errors.Select(e => e.Description));
+            _loading = false;
+            return;
+        }
+
+        await UserManager.AddToRoleAsync(user, "Customer");
+        _success = true;
+        _loading = false;
+        await Task.Delay(1500);
+        Nav.NavigateTo("/login");
+    }
+
+    private sealed class RegisterModel
+    {
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Ad zorunludur.")]
+        public string FirstName { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Soyad zorunludur.")]
+        public string LastName { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "E-posta zorunludur.")]
+        [System.ComponentModel.DataAnnotations.EmailAddress(ErrorMessage = "Geçerli bir e-posta girin.")]
+        public string Email { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Şifre zorunludur.")]
+        [System.ComponentModel.DataAnnotations.MinLength(6, ErrorMessage = "Şifre en az 6 karakter olmalıdır.")]
+        public string Password { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Şifre tekrar zorunludur.")]
+        public string ConfirmPassword { get; set; } = string.Empty;
+    }
+}

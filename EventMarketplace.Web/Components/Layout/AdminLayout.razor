@@ -1,0 +1,38 @@
+@inherits LayoutComponentBase
+
+<div class="em-admin-layout">
+    <!-- Sidebar -->
+    <aside class="em-sidebar">
+        <div class="em-sidebar-logo">🎟 Admin Panel</div>
+        <nav class="em-sidebar-nav">
+            <a href="/admin/dashboard" class="@NavClass("/admin/dashboard")">
+                <span>📊</span> Dashboard
+            </a>
+            <a href="/admin/events" class="@NavClass("/admin/events")">
+                <span>🎪</span> Etkinlikler
+            </a>
+            <a href="/admin/members" class="@NavClass("/admin/members")">
+                <span>👥</span> Üyeler
+            </a>
+            <hr />
+            <a href="/">← Siteye Dön</a>
+            <form method="post" action="/logout">
+                <AntiforgeryToken />
+                <button type="submit" class="em-sidebar-logout">Çıkış Yap</button>
+            </form>
+        </nav>
+    </aside>
+    <!-- Content -->
+    <div class="em-admin-content">
+        <div class="em-admin-body">
+            @Body
+        </div>
+    </div>
+</div>
+
+@code {
+    [Inject] private NavigationManager Nav { get; set; } = default!;
+
+    private string NavClass(string href)
+        => Nav.Uri.Contains(href, StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty;
+}

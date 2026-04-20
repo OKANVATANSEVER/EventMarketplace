@@ -1,0 +1,72 @@
+@page "/events/{Id:guid}"
+@layout MainLayout
+@using EventMarketplace.Application.Repositories
+@using EventMarketplace.Application.DTOs
+@inject IEventRepository EventRepo
+@inject NavigationManager Nav
+
+<PageTitle>Etkinlik Detayı – EventMarketplace</PageTitle>
+
+@if (_loading)
+{
+    <div class="em-loading"><div class="em-spinner"></div></div>
+}
+else if (_event is null)
+{
+    <div class="em-not-found">
+        <h1>❌ Etkinlik bulunamadı</h1>
+        <a href="/events" class="em-btn-primary">Etkinliklere Dön</a>
+    </div>
+}
+else
+{
+    <div class="em-event-detail">
+        <div class="em-event-detail-header">
+            @if (_event.IsFeatured)
+            {
+                <span class="em-badge em-badge-featured">⭐ Öne Çıkan</span>
+            }
+            <span class="em-badge">@_event.CategoryName</span>
+            <h1>@_event.Title</h1>
+            <div class="em-event-meta">
+                <span>📅 @_event.StartDate.ToString("dd MMMM yyyy, HH:mm")</span>
+                <span>📍 @_event.City</span>
+                <span>💰 @(_event.Price == 0 ? "Ücretsiz" : $"₺{_event.Price:N2}")</span>
+            </div>
+        </div>
+        <div class="em-event-actions">
+            <AuthorizeView>
+                <Authorized>
+                    <button class="em-btn-primary em-btn-lg">🎟 Bilet Al</button>
+                </Authorized>
+                <NotAuthorized>
+                    <a href="/login" class="em-btn-primary em-btn-lg">Giriş Yap ve Bilet Al</a>
+                </NotAuthorized>
+            </AuthorizeView>
+            <a href="/events" class="em-btn-outline">← Geri Dön</a>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+    private EventListItemDto? _event;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var entity = await EventRepo.GetByIdAsync(Id);
+        if (entity is not null)
+        {
+            _event = new EventListItemDto(
+                entity.Id,
+                entity.Title,
+                entity.Price,
+                entity.StartDate,
+                entity.City,
+                entity.Category?.Name ?? string.Empty,
+                entity.IsFeatured);
+        }
+        _loading = false;
+    }
+}

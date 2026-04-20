@@ -1,0 +1,128 @@
+@page "/admin/events"
+@layout AdminLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+@using EventMarketplace.Application.Repositories
+@using EventMarketplace.Application.DTOs
+@using EventMarketplace.Application.Commands.Notifications
+@using MediatR
+@inject IEventRepository EventRepo
+@inject IMediator Mediator
+
+<PageTitle>Etkinlik Yönetimi</PageTitle>
+
+<div class="em-dashboard">
+    <h1 class="em-page-title">🎪 Etkinlik Yönetimi</h1>
+
+    @if (!string.IsNullOrEmpty(_toastMessage))
+    {
+        <div class="em-alert @(_toastSuccess ? "em-alert-success" : "em-alert-error")">
+            @_toastMessage
+        </div>
+    }
+
+    @if (_loading)
+    {
+        <div class="em-loading"><div class="em-spinner"></div><p>Yükleniyor...</p></div>
+    }
+    else
+    {
+        <div class="em-card">
+            <div class="em-card-header">
+                <h2>Bu Ayki Etkinlikler (@_events.Count)</h2>
+                <div class="em-filter-row">
+                    <input @bind="_search" @bind:event="oninput" class="em-input" placeholder="Etkinlik ara..." />
+                </div>
+            </div>
+            <div class="em-card-body">
+                @if (!FilteredEvents.Any())
+                {
+                    <p class="em-empty">Etkinlik bulunamadı.</p>
+                }
+                else
+                {
+                    <table class="em-table">
+                        <thead>
+                            <tr>
+                                <th>Etkinlik Adı</th>
+                                <th>Kategori</th>
+                                <th>Şehir</th>
+                                <th>Tarih</th>
+                                <th>Fiyat</th>
+                                <th>İşlem</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var ev in FilteredEvents)
+                            {
+                                <tr>
+                                    <td>
+                                        @if (ev.IsFeatured)
+                                        {
+                                            <span class="em-badge em-badge-featured">⭐</span>
+                                        }
+                                        @ev.Title
+                                    </td>
+                                    <td><span class="em-badge">@ev.CategoryName</span></td>
+                                    <td>@ev.City</td>
+                                    <td>@ev.StartDate.ToString("dd.MM.yyyy HH:mm")</td>
+                                    <td>@(ev.Price == 0 ? "Ücretsiz" : $"₺{ev.Price:N2}")</td>
+                                    <td>
+                                        <button class="em-btn-sm em-btn-primary"
+                                                @onclick="() => NotifyMembers(ev)"
+                                                disabled="@(_notifying == ev.Id)">
+                                            @(_notifying == ev.Id ? "Gönderiliyor..." : "📧 Bildir")
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<EventListItemDto> _events = [];
+    private bool _loading = true;
+    private string _search = string.Empty;
+    private Guid? _notifying;
+    private string _toastMessage = string.Empty;
+    private bool _toastSuccess;
+
+    private List<EventListItemDto> FilteredEvents => string.IsNullOrWhiteSpace(_search)
+        ? _events
+        : _events.Where(e => e.Title.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
+                              e.CategoryName.Contains(_search, StringComparison.OrdinalIgnoreCase)).ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var startOfMonth = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+        var result = await EventRepo.GetEventsStartingAfterAsync(startOfMonth);
+        _events = result.ToList();
+        _loading = false;
+    }
+
+    private async Task NotifyMembers(EventListItemDto ev)
+    {
+        _notifying = ev.Id;
+        _toastMessage = string.Empty;
+        StateHasChanged();
+
+        var command = new NotifyMembersAboutEventCommand(
+            ev.Id,
+            ev.Title,
+            string.Empty,
+            ev.StartDate,
+            ev.City,
+            ev.Price);
+
+        var sent = await Mediator.Send(command);
+        _toastMessage = sent
+            ? $"✅ '{ev.Title}' etkinliği için üyelere bildirim gönderildi."
+            : "⚠️ Göndermek için kayıtlı üye bulunamadı.";
+        _toastSuccess = sent;
+        _notifying = null;
+    }
+}

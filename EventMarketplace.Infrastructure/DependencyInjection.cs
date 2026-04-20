@@ -1,7 +1,9 @@
 using EventMarketplace.Application.Repositories;
+using EventMarketplace.Application.Services;
 using EventMarketplace.Infrastructure.Identity;
 using EventMarketplace.Infrastructure.Persistence;
 using EventMarketplace.Infrastructure.Repositories;
+using EventMarketplace.Infrastructure.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -34,6 +36,9 @@ public static class DependencyInjection
             .AddEntityFrameworkStores<ApplicationDbContext>();
 
         services.AddScoped<IEventRepository, EventRepository>();
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IEmailService, EmailService>();
+        services.AddScoped<ISmsService, SmsService>();
 
         return services;
     }

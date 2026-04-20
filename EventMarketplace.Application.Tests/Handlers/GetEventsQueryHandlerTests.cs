@@ -59,5 +59,14 @@ public class GetEventsQueryHandlerTests
 
             return Task.FromResult(new PagedResult<EventListItemDto>(items, page, pageSize, 1));
         }
+
+        public Task<IList<EventListItemDto>> GetEventsStartingAfterAsync(DateTime after, CancellationToken cancellationToken = default)
+            => Task.FromResult<IList<EventListItemDto>>([]);
+
+        public Task<IList<CategoryEventCountDto>> GetEventCountByCategoryAsync(DateTime after, CancellationToken cancellationToken = default)
+            => Task.FromResult<IList<CategoryEventCountDto>>([]);
+
+        public Task<IList<MonthlySummaryDto>> GetMonthlyEventSummaryAsync(DateTime from, CancellationToken cancellationToken = default)
+            => Task.FromResult<IList<MonthlySummaryDto>>([]);
     }
 }

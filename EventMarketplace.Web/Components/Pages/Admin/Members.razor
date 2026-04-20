@@ -1,0 +1,131 @@
+@page "/admin/members"
+@layout AdminLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+@using EventMarketplace.Application.Repositories
+@using EventMarketplace.Application.DTOs
+@inject IUserRepository UserRepo
+
+<PageTitle>Üye Yönetimi</PageTitle>
+
+<div class="em-dashboard">
+    <div class="em-page-header">
+        <h1 class="em-page-title">👥 Üye Yönetimi</h1>
+        <div class="em-search-bar">
+            <input @bind="_search" @bind:event="oninput" class="em-input" placeholder="İsim veya e-posta ile ara..." />
+        </div>
+    </div>
+
+    @if (_loading)
+    {
+        <div class="em-loading"><div class="em-spinner"></div><p>Yükleniyor...</p></div>
+    }
+    else
+    {
+        <!-- Stats strip -->
+        <div class="em-kpi-grid em-kpi-compact">
+            <div class="em-kpi-card em-kpi-purple">
+                <div class="em-kpi-icon">👥</div>
+                <div>
+                    <div class="em-kpi-value">@_allMembers.Count</div>
+                    <div class="em-kpi-label">Toplam Üye</div>
+                </div>
+            </div>
+            <div class="em-kpi-card em-kpi-green">
+                <div class="em-kpi-icon">🆕</div>
+                <div>
+                    <div class="em-kpi-value">@_newThisMonth</div>
+                    <div class="em-kpi-label">Bu Ay Yeni</div>
+                </div>
+            </div>
+            <div class="em-kpi-card em-kpi-blue">
+                <div class="em-kpi-icon">📅</div>
+                <div>
+                    <div class="em-kpi-value">@_newThisYear</div>
+                    <div class="em-kpi-label">Bu Yıl Yeni</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="em-card">
+            <div class="em-card-header">
+                <h2>Tüm Üyeler (@FilteredMembers.Count)</h2>
+            </div>
+            <div class="em-card-body">
+                <table class="em-table">
+                    <thead>
+                        <tr>
+                            <th>Ad Soyad</th>
+                            <th>E-posta</th>
+                            <th>Rol</th>
+                            <th>Kayıt Tarihi</th>
+                            <th>Durum</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var member in FilteredMembers)
+                        {
+                            var isNew = member.CreatedDate >= _startOfMonth;
+                            <tr>
+                                <td>
+                                    <div class="em-member-name">
+                                        <span class="em-avatar">@member.FirstName[0]@member.LastName[0]</span>
+                                        @member.FirstName @member.LastName
+                                    </div>
+                                </td>
+                                <td>@member.Email</td>
+                                <td>
+                                    @foreach (var role in member.Roles)
+                                    {
+                                        <span class="em-badge @(role == "Admin" ? "em-badge-admin" : "em-badge-role")">@role</span>
+                                    }
+                                </td>
+                                <td>@member.CreatedDate.ToString("dd.MM.yyyy")</td>
+                                <td>
+                                    @if (isNew)
+                                    {
+                                        <span class="em-badge em-badge-new">Yeni</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="em-badge em-badge-active">Aktif</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<MemberDto> _allMembers = [];
+    private bool _loading = true;
+    private string _search = string.Empty;
+    private DateTime _startOfMonth;
+    private int _newThisMonth;
+    private int _newThisYear;
+
+    private List<MemberDto> FilteredMembers => string.IsNullOrWhiteSpace(_search)
+        ? _allMembers
+        : _allMembers
+            .Where(m =>
+                $"{m.FirstName} {m.LastName}".Contains(_search, StringComparison.OrdinalIgnoreCase) ||
+                m.Email.Contains(_search, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var now = DateTime.UtcNow;
+        _startOfMonth = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+        var startOfYear = new DateTime(now.Year, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        // Load all members (joined from epoch)
+        var allFromEpoch = await UserRepo.GetMembersJoinedAfterAsync(DateTime.MinValue);
+        _allMembers = allFromEpoch.ToList();
+        _newThisMonth = _allMembers.Count(m => m.CreatedDate >= _startOfMonth);
+        _newThisYear = _allMembers.Count(m => m.CreatedDate >= startOfYear);
+        _loading = false;
+    }
+}
