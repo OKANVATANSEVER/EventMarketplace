@@ -1,13 +1,22 @@
-# EventMarketplace API
+# EventMarketplace
 
-EventMarketplace is a .NET 9 Clean Architecture Web API for event discovery and management.
+EventMarketplace is a .NET 9 Clean Architecture solution for event discovery and management.
 
-## Architecture
+Current structure includes:
+- `EventMarketplace.API` (REST API)
+- `EventMarketplace.Web` (Blazor Server UI)
+- `EventMarketplace.Application`
+- `EventMarketplace.Domain`
+- `EventMarketplace.Infrastructure`
 
-- EventMarketplace.Domain
-- EventMarketplace.Application
-- EventMarketplace.Infrastructure
-- EventMarketplace.API
+## Recent Updates (2026-04-20)
+
+- Web UI data access was fully decoupled from direct database access.
+- Web now uses API-only communication via `HttpClient` (`ApiClient` service).
+- JWT auth flow in Web was stabilized (`TokenStore`, `JwtAuthStateProvider`, `TokenBootstrapper`).
+- Login flow now supports `Remember Me` persistence behavior.
+- Root route (`/`) now opens the event list page.
+- Admin members endpoint was added: `GET /api/admin/members`.
 
 ## Tech Stack
 
@@ -56,6 +65,8 @@ Error response example:
 - GET /api/events
 - GET /api/events/{id}
 - POST /api/events (Organizer role required)
+- GET /api/admin/dashboard (Admin role required)
+- GET /api/admin/members (Admin role required)
 
 ## Example API Calls
 
@@ -113,6 +124,16 @@ dotnet ef database update -p EventMarketplace.Infrastructure -s EventMarketplace
 ```powershell
 dotnet run --project EventMarketplace.API
 ```
+
+4. Run Web (in a separate terminal)
+
+```powershell
+dotnet run --project EventMarketplace.Web
+```
+
+5. Open:
+- API Swagger: `http://localhost:5105/swagger`
+- Web UI: `http://localhost:5000`
 
 ## Deployment
 

@@ -32,12 +32,15 @@ public sealed class JwtAuthStateProvider(TokenStore tokenStore, ILocalStorageSer
         return Task.FromResult(new AuthenticationState(new ClaimsPrincipal(identity)));
     }
 
-    public async Task LoginAsync(string token)
+    public async Task LoginAsync(string token, bool rememberMe = true)
     {
         var claims = ParseClaims(token);
         tokenStore.Set(token, claims);
         tokenStore.MarkInitialized();
-        await localStorage.SetItemAsStringAsync("em_token", token);
+        if (rememberMe)
+            await localStorage.SetItemAsStringAsync("em_token", token);
+        else
+            await localStorage.RemoveItemAsync("em_token");
         NotifyAuthenticationStateChanged(GetAuthenticationStateAsync());
     }
 

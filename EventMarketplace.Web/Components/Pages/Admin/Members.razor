@@ -1,5 +1,6 @@
 @page "/admin/members"
 @layout AdminLayout
+@rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
 @inject ApiClient Api
 

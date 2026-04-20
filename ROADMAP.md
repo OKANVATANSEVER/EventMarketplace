@@ -1,5 +1,11 @@
 # Roadmap
 
+## v0.2.1 (Completed)
+- Web client decoupled from direct DB access (API-only data flow)
+- JWT login redirect/auth state stabilization
+- Remember Me support in Web login
+- Admin members API integration in Web
+
 ## v0.2.0
 - Ticketing module
 - Payment integration

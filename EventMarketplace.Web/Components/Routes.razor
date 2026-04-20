@@ -1,8 +1,14 @@
+@inject EventMarketplace.Web.Services.TokenStore TokenStore
+
 <Router AppAssembly="typeof(App).Assembly">
     <Found Context="routeData">
         <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
             <NotAuthorized>
-                @if (context.User.Identity?.IsAuthenticated != true)
+                @if (!TokenStore.IsInitialized)
+                {
+                    <p>Oturum kontrol ediliyor...</p>
+                }
+                else if (context.User.Identity?.IsAuthenticated != true)
                 {
                     <RedirectToLogin />
                 }

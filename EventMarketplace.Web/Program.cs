@@ -21,7 +21,6 @@ builder.Services.AddHttpClient<ApiClient>((sp, http) =>
     var config = sp.GetRequiredService<IConfiguration>();
     http.BaseAddress = new Uri(config["ApiSettings:BaseUrl"] ?? "http://localhost:5105/");
 });
-builder.Services.AddScoped<ApiClient>();
 
 // Persistence for JWT token across page reloads
 builder.Services.AddBlazoredLocalStorage();

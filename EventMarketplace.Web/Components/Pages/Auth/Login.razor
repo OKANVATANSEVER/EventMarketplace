@@ -1,5 +1,6 @@
 @page "/login"
 @layout MainLayout
+@rendermode InteractiveServer
 @inject ApiClient Api
 @inject JwtAuthStateProvider AuthProvider
 @inject NavigationManager Nav
@@ -18,6 +19,11 @@
             <div class="em-alert em-alert-error">@_errorMessage</div>
         }
 
+        @if (!string.IsNullOrEmpty(_debugMessage))
+        {
+            <div class="em-alert">@_debugMessage</div>
+        }
+
         <EditForm Model="_model" OnValidSubmit="HandleLogin" FormName="loginForm">
             <DataAnnotationsValidator />
             <div class="em-form-group">
@@ -29,6 +35,10 @@
                 <label>Şifre</label>
                 <InputText @bind-Value="_model.Password" type="password" class="em-input" placeholder="••••••" autocomplete="current-password" />
                 <ValidationMessage For="() => _model.Password" />
+            </div>
+            <div class="em-form-check">
+                <InputCheckbox @bind-Value="_model.RememberMe" id="rememberMe" />
+                <label for="rememberMe">Beni hatırla</label>
             </div>
             <button type="submit" class="em-btn-primary em-btn-full" disabled="@_loading">
                 @(_loading ? "Giriş yapılıyor..." : "Giriş Yap")
@@ -46,32 +56,76 @@
 
     private readonly LoginModel _model = new();
     private string _errorMessage = string.Empty;
+    private string _debugMessage = string.Empty;
     private bool _loading;
 
     private async Task HandleLogin()
     {
         _loading = true;
         _errorMessage = string.Empty;
+        _debugMessage = string.Empty;
 
-        var (success, token, error) = await Api.LoginAsync(_model.Email, _model.Password);
-
-        if (!success || token is null)
+        try
         {
-            _errorMessage = error ?? "Giriş başarısız.";
+            var (success, token, error) = await Api.LoginAsync(_model.Email, _model.Password);
+
+            if (!success || token is null)
+            {
+                _errorMessage = error ?? "Giriş başarısız.";
+                return;
+            }
+
+            await AuthProvider.LoginAsync(token, _model.RememberMe);
+
+            var claims = JwtAuthStateProvider.ParseClaims(token);
+            var roleClaims = claims
+                .Where(c => c.Type == System.Security.Claims.ClaimTypes.Role ||
+                            c.Type.Equals("role", StringComparison.OrdinalIgnoreCase) ||
+                            c.Type.EndsWith("/role", StringComparison.OrdinalIgnoreCase))
+                .Select(c => c.Value)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var isAdmin = roleClaims.Any(r => r.Equals("Admin", StringComparison.OrdinalIgnoreCase));
+
+            var requestedUrl = NormalizeReturnUrl(ReturnUrl);
+            var destination = !string.IsNullOrWhiteSpace(requestedUrl)
+                ? requestedUrl
+                : (isAdmin ? "/admin/dashboard" : "/");
+
+            _debugMessage = $"Login OK | RememberMe={_model.RememberMe} | Roles={string.Join(',', roleClaims)} | ReturnUrl={requestedUrl ?? "(null)"} | Destination={destination}";
+            Console.WriteLine($"[LOGIN_DEBUG] {_debugMessage}");
+
+            var authState = await AuthProvider.GetAuthenticationStateAsync();
+            Console.WriteLine($"[LOGIN_DEBUG] Authenticated={authState.User.Identity?.IsAuthenticated}");
+
+            Nav.NavigateTo(destination, forceLoad: false);
+        }
+        catch
+        {
+            _errorMessage = "Giriş sırasında beklenmeyen bir hata oluştu.";
+        }
+        finally
+        {
             _loading = false;
-            return;
+        }
+    }
+
+    private static string? NormalizeReturnUrl(string? returnUrl)
+    {
+        if (string.IsNullOrWhiteSpace(returnUrl))
+            return null;
+
+        if (returnUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            returnUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            if (Uri.TryCreate(returnUrl, UriKind.Absolute, out var uri))
+                return uri.PathAndQuery;
+
+            return null;
         }
 
-        await AuthProvider.LoginAsync(token);
-
-        // Check if admin role
-        var claims = JwtAuthStateProvider.ParseClaims(token);
-        var isAdmin = claims.Any(c =>
-            c.Type == System.Security.Claims.ClaimTypes.Role &&
-            c.Value == "Admin");
-
-        var destination = isAdmin ? "/admin/dashboard" : (ReturnUrl ?? "/");
-        Nav.NavigateTo(destination, forceLoad: false);
+        return returnUrl.StartsWith('/') ? returnUrl : "/" + returnUrl;
     }
 
     private sealed class LoginModel
@@ -82,5 +136,7 @@
 
         [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Şifre zorunludur.")]
         public string Password { get; set; } = string.Empty;
+
+        public bool RememberMe { get; set; } = true;
     }
 }

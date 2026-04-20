@@ -54,9 +54,9 @@ public sealed record AdminDashboardStatsModel(
 
 public sealed record AuthTokensModel(
     string AccessToken,
-    DateTime AccessExpiry,
+    DateTime ExpiresAtUtc,
     string RefreshToken,
-    DateTime RefreshExpiry);
+    DateTime RefreshTokenExpiresAtUtc);
 
 public sealed record ApiEnvelope<T>(
     T? Data,
