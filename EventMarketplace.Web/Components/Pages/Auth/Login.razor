@@ -19,11 +19,6 @@
             <div class="em-alert em-alert-error">@_errorMessage</div>
         }
 
-        @if (!string.IsNullOrEmpty(_debugMessage))
-        {
-            <div class="em-alert">@_debugMessage</div>
-        }
-
         <EditForm Model="_model" OnValidSubmit="HandleLogin" FormName="loginForm">
             <DataAnnotationsValidator />
             <div class="em-form-group">
@@ -56,14 +51,12 @@
 
     private readonly LoginModel _model = new();
     private string _errorMessage = string.Empty;
-    private string _debugMessage = string.Empty;
     private bool _loading;
 
     private async Task HandleLogin()
     {
         _loading = true;
         _errorMessage = string.Empty;
-        _debugMessage = string.Empty;
 
         try
         {
@@ -92,12 +85,6 @@
             var destination = !string.IsNullOrWhiteSpace(requestedUrl)
                 ? requestedUrl
                 : (isAdmin ? "/admin/dashboard" : "/");
-
-            _debugMessage = $"Login OK | RememberMe={_model.RememberMe} | Roles={string.Join(',', roleClaims)} | ReturnUrl={requestedUrl ?? "(null)"} | Destination={destination}";
-            Console.WriteLine($"[LOGIN_DEBUG] {_debugMessage}");
-
-            var authState = await AuthProvider.GetAuthenticationStateAsync();
-            Console.WriteLine($"[LOGIN_DEBUG] Authenticated={authState.User.Identity?.IsAuthenticated}");
 
             Nav.NavigateTo(destination, forceLoad: false);
         }
