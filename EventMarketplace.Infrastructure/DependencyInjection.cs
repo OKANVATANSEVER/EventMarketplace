@@ -16,8 +16,10 @@ public static class DependencyInjection
         var connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is missing.");
 
+        var mysqlVersion = new MySqlServerVersion(new Version(8, 0, 0));
+
         services.AddDbContext<ApplicationDbContext>(options =>
-            options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
+            options.UseMySql(connectionString, mysqlVersion));
 
         services
             .AddIdentityCore<UserApp>(options =>

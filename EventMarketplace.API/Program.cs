@@ -3,7 +3,11 @@ using EventMarketplace.API.Middleware;
 using EventMarketplace.API.Services;
 using EventMarketplace.Application;
 using EventMarketplace.Infrastructure;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
 using Microsoft.OpenApi.Models;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 using Serilog;
 
 Log.Logger = new LoggerConfiguration()
@@ -55,14 +59,40 @@ try
     builder.Services.AddScoped<JwtTokenService>();
     builder.Services.AddScoped<RefreshTokenService>();
     builder.Services.AddScoped<DevelopmentDataSeeder>();
+    builder.Services.AddRateLimiter(options =>
+    {
+        options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+        options.AddFixedWindowLimiter("auth", limiterOptions =>
+        {
+            limiterOptions.PermitLimit = 10;
+            limiterOptions.Window = TimeSpan.FromMinutes(1);
+            limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+            limiterOptions.QueueLimit = 2;
+        });
+    });
+    builder.Services.AddOpenTelemetry()
+        .ConfigureResource(resource => resource.AddService("EventMarketplace.API"))
+        .WithTracing(tracing => tracing
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddEntityFrameworkCoreInstrumentation()
+            .AddConsoleExporter());
     builder.Services.AddAuthorization();
 
     var app = builder.Build();
 
-    using (var scope = app.Services.CreateScope())
+    if (app.Environment.IsDevelopment())
     {
-        var seeder = scope.ServiceProvider.GetRequiredService<DevelopmentDataSeeder>();
-        await seeder.SeedFakeEventsAsync();
+        try
+        {
+            using var scope = app.Services.CreateScope();
+            var seeder = scope.ServiceProvider.GetRequiredService<DevelopmentDataSeeder>();
+            await seeder.SeedFakeEventsAsync();
+        }
+        catch (Exception seedEx)
+        {
+            Log.Warning(seedEx, "Development seed skipped because database is unavailable.");
+        }
     }
 
     // Global exception handler — must be first
@@ -76,6 +106,7 @@ try
 
     app.UseHttpsRedirection();
     app.UseSerilogRequestLogging();
+    app.UseRateLimiter();
     app.UseAuthentication();
     app.UseAuthorization();
 
@@ -90,5 +121,9 @@ catch (Exception ex)
 finally
 {
     Log.CloseAndFlush();
+}
+
+public partial class Program
+{
 }
 

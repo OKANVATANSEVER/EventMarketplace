@@ -2,6 +2,7 @@ using EventMarketplace.API.Contracts.Auth;
 using EventMarketplace.API.Responses;
 using EventMarketplace.API.Services;
 using EventMarketplace.Infrastructure.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,6 +10,7 @@ namespace EventMarketplace.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[EnableRateLimiting("auth")]
 public class AuthController(
     UserManager<UserApp> userManager,
     JwtTokenService tokenService,
@@ -74,5 +76,17 @@ public class AuthController(
         var (accessToken, accessExpiry, newRefreshToken, refreshExpiry) = result.Value;
         var data = new AuthResponse(accessToken, accessExpiry, newRefreshToken, refreshExpiry);
         return ActionResultInstance(CustomResponse<AuthResponse>.Success(data, 200));
+    }
+
+    [HttpPost("revoke")]
+    public async Task<IActionResult> Revoke(
+        [FromBody] RevokeTokenRequest request,
+        CancellationToken cancellationToken)
+    {
+        var revoked = await refreshTokenService.RevokeAsync(request.RefreshToken, cancellationToken);
+        if (!revoked)
+            return ActionResultInstance(CustomResponse<NoContent>.Fail("Refresh token not found or already revoked.", 404, true));
+
+        return ActionResultInstance(CustomResponse<NoContent>.Success(200));
     }
 }

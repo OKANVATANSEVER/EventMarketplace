@@ -1,0 +1,47 @@
+{
+  "info": {
+    "name": "EventMarketplace API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth - Login",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "login"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"your-user-email\",\n  \"password\": \"your-password\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Events - List",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/events?page=1&pageSize=10",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "events"],
+          "query": [
+            { "key": "page", "value": "1" },
+            { "key": "pageSize", "value": "10" }
+          ]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5105"
+    }
+  ]
+}
