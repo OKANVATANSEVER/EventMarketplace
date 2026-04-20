@@ -1,12 +1,7 @@
 @page "/admin/events"
 @layout AdminLayout
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
-@using EventMarketplace.Application.Repositories
-@using EventMarketplace.Application.DTOs
-@using EventMarketplace.Application.Commands.Notifications
-@using MediatR
-@inject IEventRepository EventRepo
-@inject IMediator Mediator
+@inject ApiClient Api
 
 <PageTitle>Etkinlik Yönetimi</PageTitle>
 
@@ -84,44 +79,36 @@
 </div>
 
 @code {
-    private List<EventListItemDto> _events = [];
+    private List<EventListItemModel> _events = [];
     private bool _loading = true;
     private string _search = string.Empty;
     private Guid? _notifying;
     private string _toastMessage = string.Empty;
     private bool _toastSuccess;
 
-    private List<EventListItemDto> FilteredEvents => string.IsNullOrWhiteSpace(_search)
+    private List<EventListItemModel> FilteredEvents => string.IsNullOrWhiteSpace(_search)
         ? _events
         : _events.Where(e => e.Title.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
                               e.CategoryName.Contains(_search, StringComparison.OrdinalIgnoreCase)).ToList();
 
     protected override async Task OnInitializedAsync()
     {
-        var startOfMonth = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
-        var result = await EventRepo.GetEventsStartingAfterAsync(startOfMonth);
-        _events = result.ToList();
+        _events = await Api.GetEventsThisMonthAsync();
         _loading = false;
     }
 
-    private async Task NotifyMembers(EventListItemDto ev)
+    private async Task NotifyMembers(EventListItemModel ev)
     {
         _notifying = ev.Id;
         _toastMessage = string.Empty;
         StateHasChanged();
 
-        var command = new NotifyMembersAboutEventCommand(
-            ev.Id,
-            ev.Title,
-            string.Empty,
-            ev.StartDate,
-            ev.City,
-            ev.Price);
+        var sent = await Api.NotifyMembersAsync(
+            ev.Id, ev.Title, string.Empty, ev.StartDate, ev.City, ev.Price);
 
-        var sent = await Mediator.Send(command);
         _toastMessage = sent
             ? $"✅ '{ev.Title}' etkinliği için üyelere bildirim gönderildi."
-            : "⚠️ Göndermek için kayıtlı üye bulunamadı.";
+            : "⚠️ Göndermek için kayıtlı üye bulunamadı veya bir hata oluştu.";
         _toastSuccess = sent;
         _notifying = null;
     }

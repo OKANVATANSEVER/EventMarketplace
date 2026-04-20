@@ -1,0 +1,14 @@
+@using Blazored.LocalStorage
+@using EventMarketplace.Web.Services
+@inject JwtAuthStateProvider AuthProvider
+@inject ILocalStorageService LocalStorage
+
+@* Invisible component – initializes JWT from LocalStorage after first render *@
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+            await AuthProvider.InitializeFromStorageAsync();
+    }
+}

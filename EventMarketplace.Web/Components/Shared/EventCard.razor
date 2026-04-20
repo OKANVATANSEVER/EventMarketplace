@@ -1,4 +1,4 @@
-@using EventMarketplace.Application.DTOs
+@using EventMarketplace.Web.Models
 
 <div class="em-event-card">
     @if (Event.IsFeatured)
@@ -23,5 +23,5 @@
 
 @code {
     [Parameter, System.ComponentModel.DataAnnotations.Required]
-    public EventListItemDto Event { get; set; } = default!;
+    public EventListItemModel Event { get; set; } = default!;
 }

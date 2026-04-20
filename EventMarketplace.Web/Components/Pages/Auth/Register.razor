@@ -1,9 +1,6 @@
 @page "/register"
 @layout MainLayout
-@using EventMarketplace.Infrastructure.Identity
-@using Microsoft.AspNetCore.Identity
-@inject UserManager<UserApp> UserManager
-@inject SignInManager<UserApp> SignInManager
+@inject ApiClient Api
 @inject NavigationManager Nav
 
 <PageTitle>Kayıt Ol</PageTitle>
@@ -82,32 +79,16 @@
             return;
         }
 
-        var existing = await UserManager.FindByEmailAsync(_model.Email);
-        if (existing is not null)
+        var (success, error) = await Api.RegisterAsync(
+            _model.FirstName, _model.LastName, _model.Email, _model.Password);
+
+        if (!success)
         {
-            _errorMessage = "Bu e-posta adresi zaten kayıtlı.";
+            _errorMessage = error ?? "Kayıt başarısız.";
             _loading = false;
             return;
         }
 
-        var user = new UserApp
-        {
-            UserName = _model.Email,
-            Email = _model.Email,
-            FirstName = _model.FirstName,
-            LastName = _model.LastName,
-            CreatedDate = DateTime.UtcNow
-        };
-
-        var result = await UserManager.CreateAsync(user, _model.Password);
-        if (!result.Succeeded)
-        {
-            _errorMessage = string.Join(" ", result.Errors.Select(e => e.Description));
-            _loading = false;
-            return;
-        }
-
-        await UserManager.AddToRoleAsync(user, "Customer");
         _success = true;
         _loading = false;
         await Task.Delay(1500);

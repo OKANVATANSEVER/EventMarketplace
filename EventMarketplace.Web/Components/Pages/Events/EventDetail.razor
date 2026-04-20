@@ -1,8 +1,6 @@
 @page "/events/{Id:guid}"
 @layout MainLayout
-@using EventMarketplace.Application.Repositories
-@using EventMarketplace.Application.DTOs
-@inject IEventRepository EventRepo
+@inject ApiClient Api
 @inject NavigationManager Nav
 
 <PageTitle>Etkinlik Detayı – EventMarketplace</PageTitle>
@@ -50,23 +48,12 @@ else
 
 @code {
     [Parameter] public Guid Id { get; set; }
-    private EventListItemDto? _event;
+    private EventDetailModel? _event;
     private bool _loading = true;
 
     protected override async Task OnInitializedAsync()
     {
-        var entity = await EventRepo.GetByIdAsync(Id);
-        if (entity is not null)
-        {
-            _event = new EventListItemDto(
-                entity.Id,
-                entity.Title,
-                entity.Price,
-                entity.StartDate,
-                entity.City,
-                entity.Category?.Name ?? string.Empty,
-                entity.IsFeatured);
-        }
+        _event = await Api.GetEventByIdAsync(Id);
         _loading = false;
     }
 }

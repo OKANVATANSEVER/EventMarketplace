@@ -1,4 +1,6 @@
 @inherits LayoutComponentBase
+@inject JwtAuthStateProvider AuthProvider
+@inject NavigationManager Nav
 
 <div class="em-admin-layout">
     <!-- Sidebar -->
@@ -16,10 +18,7 @@
             </a>
             <hr />
             <a href="/">← Siteye Dön</a>
-            <form method="post" action="/logout">
-                <AntiforgeryToken />
-                <button type="submit" class="em-sidebar-logout">Çıkış Yap</button>
-            </form>
+            <button @onclick="HandleLogout" class="em-sidebar-logout">Çıkış Yap</button>
         </nav>
     </aside>
     <!-- Content -->
@@ -31,8 +30,12 @@
 </div>
 
 @code {
-    [Inject] private NavigationManager Nav { get; set; } = default!;
-
     private string NavClass(string href)
         => Nav.Uri.Contains(href, StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty;
+
+    private async Task HandleLogout()
+    {
+        await AuthProvider.LogoutAsync();
+        Nav.NavigateTo("/login", forceLoad: false);
+    }
 }

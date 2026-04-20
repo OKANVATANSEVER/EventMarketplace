@@ -1,5 +1,6 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @inject NavigationManager Nav
+@inject JwtAuthStateProvider AuthProvider
 
 <header class="em-header">
     <div class="em-header-inner">
@@ -11,10 +12,7 @@
                     <AuthorizeView Roles="Admin">
                         <a href="/admin/dashboard" class="em-nav-admin">Admin Panel</a>
                     </AuthorizeView>
-                    <form method="post" action="/logout">
-                        <AntiforgeryToken />
-                        <button type="submit" class="em-btn-link">Çıkış (@authCtx.User.Identity?.Name)</button>
-                    </form>
+                    <button @onclick="HandleLogout" class="em-btn-link">Çıkış (@authCtx.User.Identity?.Name)</button>
                 </Authorized>
                 <NotAuthorized>
                     <a href="/login">Giriş Yap</a>
@@ -24,3 +22,11 @@
         </nav>
     </div>
 </header>
+
+@code {
+    private async Task HandleLogout()
+    {
+        await AuthProvider.LogoutAsync();
+        Nav.NavigateTo("/login", forceLoad: false);
+    }
+}

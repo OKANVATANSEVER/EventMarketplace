@@ -1,8 +1,6 @@
 @page "/events"
 @layout MainLayout
-@using EventMarketplace.Application.Repositories
-@using EventMarketplace.Application.DTOs
-@inject IEventRepository EventRepo
+@inject ApiClient Api
 
 <PageTitle>Etkinlikler – EventMarketplace</PageTitle>
 
@@ -52,7 +50,7 @@
 </div>
 
 @code {
-    private PagedResult<EventListItemDto>? _result;
+    private PagedResultModel<EventListItemModel>? _result;
     private bool _loading = true;
     private string _searchCity = string.Empty;
     private string _featured = string.Empty;
@@ -96,7 +94,7 @@
         bool? isFeatured = _featured == "true" ? true : null;
         var city = string.IsNullOrWhiteSpace(_searchCity) ? null : _searchCity.Trim();
 
-        _result = await EventRepo.GetFilteredAsync(city, null, isFeatured, _page, _pageSize);
+        _result = await Api.GetEventsAsync(city, isFeatured, _page, _pageSize);
         _loading = false;
     }
 }

@@ -1,8 +1,6 @@
 @page "/admin/dashboard"
 @layout AdminLayout
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
-@using EventMarketplace.Application.DTOs
-@using EventMarketplace.Web.Services
 @inject AdminStatsService StatsService
 
 <PageTitle>Admin Dashboard</PageTitle>
@@ -177,7 +175,7 @@ else
 }
 
 @code {
-    private AdminDashboardStatsDto? _stats;
+    private AdminDashboardStatsModel? _stats;
     private bool _loading = true;
 
     protected override async Task OnInitializedAsync()

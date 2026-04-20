@@ -4,6 +4,7 @@ using EventMarketplace.Application.Queries.Admin;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using EventMarketplace.Application.DTOs;
 
 namespace EventMarketplace.API.Controllers;
 
@@ -18,6 +19,14 @@ public class AdminController(IMediator mediator) : CustomBaseController
     {
         var stats = await mediator.Send(new GetAdminDashboardStatsQuery(), cancellationToken);
         return ActionResultInstance(CustomResponse<object>.Success(stats, 200));
+    }
+
+    /// <summary>Returns all registered members.</summary>
+    [HttpGet("members")]
+    public async Task<IActionResult> GetAllMembers(CancellationToken cancellationToken)
+    {
+        var members = await mediator.Send(new GetAllMembersQuery(), cancellationToken);
+        return ActionResultInstance(CustomResponse<IList<MemberDto>>.Success(members, 200));
     }
 
     /// <summary>Sends an email notification to all members about the specified event.</summary>
