@@ -32,7 +32,10 @@ public sealed record MemberModel(
     string LastName,
     string Email,
     DateTime CreatedDate,
-    IList<string> Roles);
+    IList<string> Roles,
+    bool IsActive = true);
+
+public sealed record CategoryModel(Guid Id, string Name);
 
 public sealed record CategoryEventCountModel(
     string CategoryName,

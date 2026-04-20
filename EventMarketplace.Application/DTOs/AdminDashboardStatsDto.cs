@@ -6,7 +6,10 @@ public record MemberDto(
     string LastName,
     string Email,
     DateTime CreatedDate,
-    IList<string> Roles);
+    IList<string> Roles,
+    bool IsActive = true);
+
+public record CategoryDto(Guid Id, string Name);
 
 public record CategoryEventCountDto(
     string CategoryName,

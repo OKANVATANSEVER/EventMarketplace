@@ -87,11 +87,25 @@ public sealed class EventRepository(ApplicationDbContext dbContext) : IEventRepo
     {
         return await dbContext.Events
             .AsNoTracking()
-            .Include(e => e.Category)
             .Where(e => e.StartDate >= after)
             .GroupBy(e => e.Category != null ? e.Category.Name : "Kategorisiz")
             .Select(g => new CategoryEventCountDto(g.Key, g.Count()))
             .OrderByDescending(x => x.EventCount)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task UpdateAsync(Event eventEntity, CancellationToken cancellationToken = default)
+    {
+        dbContext.Events.Update(eventEntity);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<IList<CategoryDto>> GetCategoriesAsync(CancellationToken cancellationToken = default)
+    {
+        return await dbContext.Categories
+            .AsNoTracking()
+            .OrderBy(c => c.Name)
+            .Select(c => new CategoryDto(c.Id, c.Name))
             .ToListAsync(cancellationToken);
     }
 

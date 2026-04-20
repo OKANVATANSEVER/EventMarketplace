@@ -129,4 +129,76 @@ public sealed class ApiClient(HttpClient http, TokenStore tokenStore)
             $"api/admin/events/{eventId}/notify", body, Json, ct);
         return response.IsSuccessStatusCode;
     }
+
+    // ── ADMIN: EVENTS ────────────────────────────────────────────────────────
+
+    public async Task<List<EventListItemModel>> GetAllEventsAdminAsync(CancellationToken ct = default)
+    {
+        AttachAuth();
+        var response = await http.GetAsync("api/events?page=1&pageSize=500", ct);
+        if (!response.IsSuccessStatusCode) return [];
+        var envelope = await response.Content
+            .ReadFromJsonAsync<ApiEnvelope<PagedResultModel<EventListItemModel>>>(Json, ct);
+        return envelope?.Data?.Items.ToList() ?? [];
+    }
+
+    public async Task<(bool Success, string Error)> CreateEventAsync(
+        string title, string description, decimal price,
+        DateTime startDate, DateTime endDate, string city,
+        Guid categoryId, bool isFeatured,
+        CancellationToken ct = default)
+    {
+        AttachAuth();
+        var body = new { title, description, price, startDate, endDate, city, categoryId, isFeatured };
+        var response = await http.PostAsJsonAsync("api/events", body, Json, ct);
+        if (response.IsSuccessStatusCode) return (true, string.Empty);
+        var err = await response.Content.ReadAsStringAsync(ct);
+        return (false, err);
+    }
+
+    public async Task<(bool Success, string Error)> UpdateEventAsync(
+        Guid id, string title, string description, decimal price,
+        DateTime startDate, DateTime endDate, string city,
+        Guid categoryId, bool isFeatured,
+        CancellationToken ct = default)
+    {
+        AttachAuth();
+        var body = new { title, description, price, startDate, endDate, city, categoryId, isFeatured };
+        var response = await http.PutAsJsonAsync($"api/events/{id}", body, Json, ct);
+        if (response.IsSuccessStatusCode) return (true, string.Empty);
+        var err = await response.Content.ReadAsStringAsync(ct);
+        return (false, err);
+    }
+
+    public async Task<List<CategoryModel>> GetCategoriesAsync(CancellationToken ct = default)
+    {
+        AttachAuth();
+        var response = await http.GetAsync("api/admin/categories", ct);
+        if (!response.IsSuccessStatusCode) return [];
+        var envelope = await response.Content
+            .ReadFromJsonAsync<ApiEnvelope<List<CategoryModel>>>(Json, ct);
+        return envelope?.Data ?? [];
+    }
+
+    // ── ADMIN: MEMBERS ───────────────────────────────────────────────────────
+
+    public async Task<(bool Success, string Error)> CreateMemberAsync(
+        string firstName, string lastName, string email, string password, string role,
+        CancellationToken ct = default)
+    {
+        AttachAuth();
+        var body = new { firstName, lastName, email, password, role };
+        var response = await http.PostAsJsonAsync("api/admin/members", body, Json, ct);
+        if (response.IsSuccessStatusCode) return (true, string.Empty);
+        var err = await response.Content.ReadAsStringAsync(ct);
+        return (false, err);
+    }
+
+    public async Task<bool> SetMemberActiveStatusAsync(string userId, bool isActive, CancellationToken ct = default)
+    {
+        AttachAuth();
+        var body = new { isActive };
+        var response = await http.PutAsJsonAsync($"api/admin/members/{userId}/status", body, Json, ct);
+        return response.IsSuccessStatusCode;
+    }
 }

@@ -10,7 +10,6 @@ public sealed class GetAllMembersQueryHandler(IUserRepository userRepository)
 {
     public async Task<IList<MemberDto>> Handle(GetAllMembersQuery request, CancellationToken cancellationToken)
     {
-        var members = await userRepository.GetMembersJoinedAfterAsync(DateTime.MinValue);
-        return members.ToList();
+        return await userRepository.GetAllAsync(cancellationToken);
     }
 }

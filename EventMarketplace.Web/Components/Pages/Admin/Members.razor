@@ -9,9 +9,10 @@
 <div class="em-dashboard">
     <div class="em-page-header">
         <h1 class="em-page-title">👥 Üye Yönetimi</h1>
-        <div class="em-search-bar">
-            <input @bind="_search" @bind:event="oninput" class="em-input" placeholder="İsim veya e-posta ile ara..." />
-        </div>
+        <button class="em-btn em-btn-success" @onclick="OpenCreate">➕ Üye Ekle</button>
+    </div>
+    <div class="em-search-bar">
+        <input @bind="_search" @bind:event="oninput" class="em-input" placeholder="İsim veya e-posta ile ara..." />
     </div>
 
     @if (_loading)
@@ -58,6 +59,7 @@
                             <th>Rol</th>
                             <th>Kayıt Tarihi</th>
                             <th>Durum</th>
+                            <th>İşlem</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -84,9 +86,30 @@
                                     {
                                         <span class="em-badge em-badge-new">Yeni</span>
                                     }
-                                    else
+                                    else if (member.IsActive)
                                     {
                                         <span class="em-badge em-badge-active">Aktif</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="em-badge em-badge-error">Pasif</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (!member.Roles.Contains("Admin"))
+                                    {
+                                        <button class="em-btn-sm @(member.IsActive ? "em-btn-warning" : "em-btn-success")"
+                                                @onclick="() => ToggleStatus(member)"
+                                                disabled="@(_togglingId == member.Id)">
+                                            @if (_togglingId == member.Id)
+                                            {
+                                                <span>...</span>
+                                            }
+                                            else
+                                            {
+                                                <span>@(member.IsActive ? "⛔ Pasif Yap" : "✅ Aktif Yap")</span>
+                                            }
+                                        </button>
                                     }
                                 </td>
                             </tr>
@@ -98,6 +121,62 @@
     }
 </div>
 
+<!-- Üye Ekle Modal -->
+@if (_showModal)
+{
+    <div class="em-modal-overlay" @onclick="CloseModal">
+        <div class="em-modal" @onclick:stopPropagation="true">
+            <div class="em-modal-header">
+                <h2>Yeni Üye Ekle</h2>
+                <button class="em-modal-close" @onclick="CloseModal">✕</button>
+            </div>
+            <div class="em-modal-body">
+                @if (!string.IsNullOrEmpty(_toastMessage) && !_toastSuccess)
+                {
+                    <div class="em-alert em-alert-error">@_toastMessage</div>
+                }
+                <div class="em-form-grid">
+                    <div class="em-form-group">
+                        <label>Ad *</label>
+                        <input @bind="_form.FirstName" class="em-input" placeholder="Ad" />
+                    </div>
+                    <div class="em-form-group">
+                        <label>Soyad *</label>
+                        <input @bind="_form.LastName" class="em-input" placeholder="Soyad" />
+                    </div>
+                    <div class="em-form-group em-full">
+                        <label>E-posta *</label>
+                        <input type="email" @bind="_form.Email" class="em-input" placeholder="ornek@email.com" />
+                    </div>
+                    <div class="em-form-group em-full">
+                        <label>Şifre *</label>
+                        <input type="password" @bind="_form.Password" class="em-input" placeholder="En az 8 karakter" />
+                    </div>
+                    <div class="em-form-group em-full">
+                        <label>Rol *</label>
+                        <select @bind="_form.Role" class="em-input">
+                            <option value="Member">Üye</option>
+                            <option value="Organizer">Organizatör</option>
+                            <option value="Admin">Admin</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="em-modal-footer">
+                <button class="em-btn em-btn-secondary" @onclick="CloseModal">İptal</button>
+                <button class="em-btn em-btn-primary" @onclick="CreateMember" disabled="@_saving">
+                    @(_saving ? "Kaydediliyor..." : "Üye Ekle")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(_toastMessage) && _toastSuccess)
+{
+    <div class="em-alert em-alert-success em-toast">@_toastMessage</div>
+}
+
 @code {
     private List<MemberModel> _allMembers = [];
     private bool _loading = true;
@@ -105,6 +184,14 @@
     private DateTime _startOfMonth;
     private int _newThisMonth;
     private int _newThisYear;
+    private string? _togglingId;
+    private string _toastMessage = string.Empty;
+    private bool _toastSuccess;
+
+    // Modal
+    private bool _showModal;
+    private bool _saving;
+    private MemberFormModel _form = new();
 
     private List<MemberModel> FilteredMembers => string.IsNullOrWhiteSpace(_search)
         ? _allMembers
@@ -124,5 +211,81 @@
         _newThisMonth = _allMembers.Count(m => m.CreatedDate >= _startOfMonth);
         _newThisYear = _allMembers.Count(m => m.CreatedDate >= startOfYear);
         _loading = false;
+    }
+
+    private void OpenCreate()
+    {
+        _form = new MemberFormModel();
+        _toastMessage = string.Empty;
+        _showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        _showModal = false;
+        _saving = false;
+    }
+
+    private async Task CreateMember()
+    {
+        if (string.IsNullOrWhiteSpace(_form.FirstName) || string.IsNullOrWhiteSpace(_form.LastName) ||
+            string.IsNullOrWhiteSpace(_form.Email) || string.IsNullOrWhiteSpace(_form.Password))
+        {
+            _toastMessage = "Lütfen tüm zorunlu alanları doldurun.";
+            _toastSuccess = false;
+            return;
+        }
+
+        _saving = true;
+        var (ok, error) = await Api.CreateMemberAsync(_form.FirstName, _form.LastName, _form.Email, _form.Password, _form.Role);
+
+        if (!ok)
+        {
+            _toastMessage = "Hata: " + error;
+            _toastSuccess = false;
+            _saving = false;
+            return;
+        }
+
+        _toastMessage = $"✅ {_form.FirstName} {_form.LastName} başarıyla eklendi.";
+        _toastSuccess = true;
+        _showModal = false;
+        _saving = false;
+        _allMembers = await Api.GetAllMembersAsync();
+        _newThisMonth = _allMembers.Count(m => m.CreatedDate >= _startOfMonth);
+        var startOfYear = new DateTime(DateTime.UtcNow.Year, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        _newThisYear = _allMembers.Count(m => m.CreatedDate >= startOfYear);
+    }
+
+    private async Task ToggleStatus(MemberModel member)
+    {
+        _togglingId = member.Id;
+        StateHasChanged();
+
+        var success = await Api.SetMemberActiveStatusAsync(member.Id, !member.IsActive);
+        if (success)
+        {
+            _allMembers = await Api.GetAllMembersAsync();
+            _toastMessage = member.IsActive
+                ? $"⛔ {member.FirstName} {member.LastName} pasif yapıldı."
+                : $"✅ {member.FirstName} {member.LastName} aktif yapıldı.";
+            _toastSuccess = true;
+        }
+        else
+        {
+            _toastMessage = "İşlem başarısız.";
+            _toastSuccess = false;
+        }
+
+        _togglingId = null;
+    }
+
+    private sealed class MemberFormModel
+    {
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+        public string Role { get; set; } = "Member";
     }
 }

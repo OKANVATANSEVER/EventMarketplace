@@ -7,7 +7,10 @@
 <PageTitle>Etkinlik Yönetimi</PageTitle>
 
 <div class="em-dashboard">
-    <h1 class="em-page-title">🎪 Etkinlik Yönetimi</h1>
+    <div class="em-page-header">
+        <h1 class="em-page-title">🎪 Etkinlik Yönetimi</h1>
+        <button class="em-btn em-btn-success" @onclick="OpenCreate">➕ Yeni Etkinlik</button>
+    </div>
 
     @if (!string.IsNullOrEmpty(_toastMessage))
     {
@@ -24,7 +27,7 @@
     {
         <div class="em-card">
             <div class="em-card-header">
-                <h2>Bu Ayki Etkinlikler (@_events.Count)</h2>
+                <h2>Tüm Etkinlikler (@_events.Count)</h2>
                 <div class="em-filter-row">
                     <input @bind="_search" @bind:event="oninput" class="em-input" placeholder="Etkinlik ara..." />
                 </div>
@@ -44,7 +47,7 @@
                                 <th>Şehir</th>
                                 <th>Tarih</th>
                                 <th>Fiyat</th>
-                                <th>İşlem</th>
+                                <th>İşlemler</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -62,7 +65,11 @@
                                     <td>@ev.City</td>
                                     <td>@ev.StartDate.ToString("dd.MM.yyyy HH:mm")</td>
                                     <td>@(ev.Price == 0 ? "Ücretsiz" : $"₺{ev.Price:N2}")</td>
-                                    <td>
+                                    <td class="em-actions">
+                                        <button class="em-btn-sm em-btn-secondary"
+                                                @onclick="() => OpenEdit(ev)">
+                                            ✏️ Düzenle
+                                        </button>
                                         <button class="em-btn-sm em-btn-primary"
                                                 @onclick="() => NotifyMembers(ev)"
                                                 disabled="@(_notifying == ev.Id)">
@@ -79,13 +86,88 @@
     }
 </div>
 
+<!-- Etkinlik Modal -->
+@if (_showModal)
+{
+    <div class="em-modal-overlay" @onclick="CloseModal">
+        <div class="em-modal" @onclick:stopPropagation="true">
+            <div class="em-modal-header">
+                <h2>@(_editingId.HasValue ? "Etkinliği Düzenle" : "Yeni Etkinlik")</h2>
+                <button class="em-modal-close" @onclick="CloseModal">✕</button>
+            </div>
+            <div class="em-modal-body">
+                @if (!string.IsNullOrEmpty(_formError))
+                {
+                    <div class="em-alert em-alert-error">@_formError</div>
+                }
+                <div class="em-form-grid">
+                    <div class="em-form-group em-full">
+                        <label>Etkinlik Adı *</label>
+                        <input @bind="_form.Title" class="em-input" placeholder="Etkinlik adı" />
+                    </div>
+                    <div class="em-form-group em-full">
+                        <label>Açıklama</label>
+                        <textarea @bind="_form.Description" class="em-input em-textarea" rows="3" placeholder="Etkinlik açıklaması"></textarea>
+                    </div>
+                    <div class="em-form-group">
+                        <label>Kategori *</label>
+                        <select @bind="_form.CategoryId" class="em-input">
+                            <option value="">-- Seçiniz --</option>
+                            @foreach (var cat in _categories)
+                            {
+                                <option value="@cat.Id">@cat.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="em-form-group">
+                        <label>Şehir *</label>
+                        <input @bind="_form.City" class="em-input" placeholder="İstanbul" />
+                    </div>
+                    <div class="em-form-group">
+                        <label>Başlangıç Tarihi *</label>
+                        <input type="datetime-local" @bind="_form.StartDate" class="em-input" />
+                    </div>
+                    <div class="em-form-group">
+                        <label>Bitiş Tarihi *</label>
+                        <input type="datetime-local" @bind="_form.EndDate" class="em-input" />
+                    </div>
+                    <div class="em-form-group">
+                        <label>Fiyat (₺)</label>
+                        <input type="number" @bind="_form.Price" class="em-input" min="0" step="0.01" />
+                    </div>
+                    <div class="em-form-group em-checkbox-group">
+                        <label>
+                            <input type="checkbox" @bind="_form.IsFeatured" />
+                            Öne Çıkan Etkinlik
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="em-modal-footer">
+                <button class="em-btn em-btn-secondary" @onclick="CloseModal">İptal</button>
+                <button class="em-btn em-btn-primary" @onclick="SaveEvent" disabled="@_saving">
+                    @(_saving ? "Kaydediliyor..." : (_editingId.HasValue ? "Güncelle" : "Oluştur"))
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private List<EventListItemModel> _events = [];
+    private List<CategoryModel> _categories = [];
     private bool _loading = true;
     private string _search = string.Empty;
     private Guid? _notifying;
     private string _toastMessage = string.Empty;
     private bool _toastSuccess;
+
+    // Modal
+    private bool _showModal;
+    private bool _saving;
+    private string _formError = string.Empty;
+    private Guid? _editingId;
+    private EventFormModel _form = new();
 
     private List<EventListItemModel> FilteredEvents => string.IsNullOrWhiteSpace(_search)
         ? _events
@@ -94,8 +176,81 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _events = await Api.GetEventsThisMonthAsync();
+        var eventsTask = Api.GetAllEventsAdminAsync();
+        var catTask = Api.GetCategoriesAsync();
+        await Task.WhenAll(eventsTask, catTask);
+        _events = eventsTask.Result;
+        _categories = catTask.Result;
         _loading = false;
+    }
+
+    private void OpenCreate()
+    {
+        _editingId = null;
+        _form = new EventFormModel { StartDate = DateTime.Now.AddDays(7), EndDate = DateTime.Now.AddDays(8) };
+        _formError = string.Empty;
+        _showModal = true;
+    }
+
+    private void OpenEdit(EventListItemModel ev)
+    {
+        _editingId = ev.Id;
+        var cat = _categories.FirstOrDefault(c => c.Name == ev.CategoryName);
+        _form = new EventFormModel
+        {
+            Title = ev.Title,
+            City = ev.City,
+            StartDate = ev.StartDate,
+            EndDate = ev.StartDate.AddHours(2),
+            Price = ev.Price,
+            IsFeatured = ev.IsFeatured,
+            CategoryId = cat?.Id ?? Guid.Empty
+        };
+        _formError = string.Empty;
+        _showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        _showModal = false;
+        _saving = false;
+        _formError = string.Empty;
+    }
+
+    private async Task SaveEvent()
+    {
+        if (string.IsNullOrWhiteSpace(_form.Title) || _form.CategoryId == Guid.Empty || string.IsNullOrWhiteSpace(_form.City))
+        {
+            _formError = "Lütfen zorunlu alanları doldurun.";
+            return;
+        }
+
+        _saving = true;
+        _formError = string.Empty;
+
+        if (_editingId.HasValue)
+        {
+            var (ok, err) = await Api.UpdateEventAsync(
+                _editingId.Value, _form.Title, _form.Description, _form.Price,
+                _form.StartDate, _form.EndDate, _form.City, _form.CategoryId, _form.IsFeatured);
+
+            if (!ok) { _formError = "Güncelleme başarısız: " + err; _saving = false; return; }
+            _toastMessage = "✅ Etkinlik güncellendi.";
+        }
+        else
+        {
+            var (ok, err) = await Api.CreateEventAsync(
+                _form.Title, _form.Description, _form.Price,
+                _form.StartDate, _form.EndDate, _form.City, _form.CategoryId, _form.IsFeatured);
+
+            if (!ok) { _formError = "Oluşturma başarısız: " + err; _saving = false; return; }
+            _toastMessage = "✅ Yeni etkinlik oluşturuldu.";
+        }
+
+        _toastSuccess = true;
+        _showModal = false;
+        _saving = false;
+        _events = await Api.GetAllEventsAdminAsync();
     }
 
     private async Task NotifyMembers(EventListItemModel ev)
@@ -112,5 +267,17 @@
             : "⚠️ Göndermek için kayıtlı üye bulunamadı veya bir hata oluştu.";
         _toastSuccess = sent;
         _notifying = null;
+    }
+
+    private sealed class EventFormModel
+    {
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public decimal Price { get; set; }
+        public DateTime StartDate { get; set; } = DateTime.Now.AddDays(7);
+        public DateTime EndDate { get; set; } = DateTime.Now.AddDays(8);
+        public string City { get; set; } = string.Empty;
+        public Guid CategoryId { get; set; }
+        public bool IsFeatured { get; set; }
     }
 }

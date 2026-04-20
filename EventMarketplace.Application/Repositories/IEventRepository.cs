@@ -20,4 +20,6 @@ public interface IEventRepository
     Task<IList<EventListItemDto>> GetEventsStartingAfterAsync(DateTime after, CancellationToken cancellationToken = default);
     Task<IList<CategoryEventCountDto>> GetEventCountByCategoryAsync(DateTime after, CancellationToken cancellationToken = default);
     Task<IList<MonthlySummaryDto>> GetMonthlyEventSummaryAsync(DateTime from, CancellationToken cancellationToken = default);
+    Task UpdateAsync(Event eventEntity, CancellationToken cancellationToken = default);
+    Task<IList<CategoryDto>> GetCategoriesAsync(CancellationToken cancellationToken = default);
 }

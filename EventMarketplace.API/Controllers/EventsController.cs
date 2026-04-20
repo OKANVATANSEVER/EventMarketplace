@@ -29,7 +29,7 @@ public class EventsController(IMediator mediator) : CustomBaseController
     }
 
     [HttpPost]
-    [Authorize(Roles = "Organizer")]
+    [Authorize(Roles = "Organizer,Admin")]
     public async Task<IActionResult> Create(
         [FromBody] CreateEventRequest request,
         CancellationToken cancellationToken)
@@ -53,6 +53,27 @@ public class EventsController(IMediator mediator) : CustomBaseController
 
         var id = await mediator.Send(command, cancellationToken);
         return ActionResultInstance(CustomResponse<object>.Success(new { id }, 201));
+    }
+
+    [HttpPut("{id:guid}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Update(
+        Guid id,
+        [FromBody] UpdateEventRequest request,
+        CancellationToken cancellationToken)
+    {
+        await mediator.Send(new UpdateEventCommand(
+            id,
+            request.Title,
+            request.Description,
+            request.Price,
+            request.StartDate,
+            request.EndDate,
+            request.City,
+            request.CategoryId,
+            request.IsFeatured), cancellationToken);
+
+        return ActionResultInstance(CustomResponse<NoContent>.Success(200));
     }
 
     [HttpGet("{id:guid}")]
