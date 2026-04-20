@@ -13,6 +13,8 @@ public interface IEventRepository
         string? city,
         Guid? categoryId,
         bool? isFeatured,
+        bool? isApproved,
+        string? title,
         int page,
         int pageSize,
         CancellationToken cancellationToken = default);

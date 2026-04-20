@@ -21,6 +21,7 @@ public sealed class UpdateEventCommandHandler(IEventRepository eventRepository)
         ev.City = request.City;
         ev.CategoryId = request.CategoryId;
         ev.IsFeatured = request.IsFeatured;
+        ev.IsApproved = request.IsApproved;
 
         await eventRepository.UpdateAsync(ev, cancellationToken);
         return true;

@@ -11,11 +11,25 @@
 
     <!-- Filters -->
     <div class="em-filters">
-         <input @bind="_searchCity" @bind:event="oninput" @bind:after="SearchAsync"
-             class="em-input" placeholder="Şehir ara..." />
+        <input @bind="_searchTitle" @bind:event="oninput" @bind:after="SearchAsync"
+            class="em-input" placeholder="Etkinlik adı ara..." />
+        <input @bind="_searchCity" @bind:event="oninput" @bind:after="SearchAsync"
+            class="em-input" placeholder="Şehir ara..." />
+        <select @bind="_categoryId" @bind:after="SearchAsync" class="em-select">
+            <option value="">Tüm Kategoriler</option>
+            @foreach (var cat in _categories)
+            {
+                <option value="@cat.Id">@cat.Name</option>
+            }
+        </select>
         <select @bind="_featured" @bind:after="SearchAsync" class="em-select">
             <option value="">Tümü</option>
             <option value="true">⭐ Öne Çıkanlar</option>
+        </select>
+        <select @bind="_approved" @bind:after="SearchAsync" class="em-select">
+            <option value="">Tüm Etkinlikler</option>
+            <option value="true">Aktif</option>
+            <option value="false">Pasif</option>
         </select>
         <button @onclick="ResetFilters" class="em-btn-outline">Sıfırla</button>
     </div>
@@ -53,21 +67,32 @@
 
 @code {
     private PagedResultModel<EventListItemModel>? _result;
+    private List<CategoryModel> _categories = [];
     private bool _loading = true;
     private string _searchCity = string.Empty;
+    private string _searchTitle = string.Empty;
     private string _featured = string.Empty;
+    private string _approved = "true";
+    private string _categoryId = string.Empty;
     private int _page = 1;
     private const int _pageSize = 9;
     private int TotalPages => (int)Math.Ceiling((double)(_result?.TotalCount ?? 0) / _pageSize);
 
-    protected override async Task OnInitializedAsync() => await LoadAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        _categories = await Api.GetCategoriesAsync();
+        await LoadAsync();
+    }
 
-    private void ResetFilters()
+    private async Task ResetFilters()
     {
         _searchCity = string.Empty;
+        _searchTitle = string.Empty;
         _featured = string.Empty;
+        _approved = "true";
+        _categoryId = string.Empty;
         _page = 1;
-        _ = LoadAsync();
+        await LoadAsync();
     }
 
     private async Task SearchAsync()
@@ -94,9 +119,16 @@
         StateHasChanged();
 
         bool? isFeatured = _featured == "true" ? true : null;
+        bool? isApproved = _approved == "true" ? true : (_approved == "false" ? false : null);
         var city = string.IsNullOrWhiteSpace(_searchCity) ? null : _searchCity.Trim();
+        var title = string.IsNullOrWhiteSpace(_searchTitle) ? null : _searchTitle.Trim();
+        var categoryId = string.IsNullOrEmpty(_categoryId) ? null : (Guid?)Guid.Parse(_categoryId);
 
-        _result = await Api.GetEventsAsync(city, isFeatured, _page, _pageSize);
+        _result = await Api.GetEventsAsync(city, categoryId, isFeatured, isApproved, title, _page, _pageSize);
+        if (_result is not null)
+        {
+            _result = _result with { Items = _result.Items.OrderByDescending(x => x.StartDate).ToList() };
+        }
         _loading = false;
     }
 }

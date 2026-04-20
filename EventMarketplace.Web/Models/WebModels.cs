@@ -7,7 +7,8 @@ public sealed record EventListItemModel(
     DateTime StartDate,
     string City,
     string CategoryName,
-    bool IsFeatured);
+    bool IsFeatured,
+    bool IsApproved);
 
 public sealed record EventDetailModel(
     Guid Id,
@@ -18,7 +19,8 @@ public sealed record EventDetailModel(
     DateTime EndDate,
     string City,
     string CategoryName,
-    bool IsFeatured);
+    bool IsFeatured,
+    bool IsApproved);
 
 public sealed record PagedResultModel<T>(
     IReadOnlyList<T> Items,

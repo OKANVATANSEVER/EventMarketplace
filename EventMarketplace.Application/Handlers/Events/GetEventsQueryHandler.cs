@@ -16,6 +16,8 @@ public sealed class GetEventsQueryHandler(IEventRepository eventRepository)
             request.Filter.City,
             request.Filter.CategoryId,
             request.Filter.IsFeatured,
+            request.Filter.IsApproved,
+            request.Filter.Title,
             request.Filter.Page,
             request.Filter.PageSize,
             cancellationToken);

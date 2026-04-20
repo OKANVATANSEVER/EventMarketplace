@@ -20,7 +20,8 @@ public sealed class CreateEventCommandHandler(IEventRepository eventRepository)
             City = request.City,
             CategoryId = request.CategoryId,
             OrganizerId = request.OrganizerId,
-            IsFeatured = request.IsFeatured
+            IsFeatured = request.IsFeatured,
+            IsApproved = request.IsApproved
         };
 
         await eventRepository.AddAsync(eventEntity, cancellationToken);

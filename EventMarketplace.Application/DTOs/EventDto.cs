@@ -11,4 +11,5 @@ public sealed record EventDto(
     Guid CategoryId,
     string CategoryName,
     string OrganizerId,
-    bool IsFeatured);
+    bool IsFeatured,
+    bool IsApproved);

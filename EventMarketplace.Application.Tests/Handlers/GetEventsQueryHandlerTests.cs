@@ -16,7 +16,7 @@ public class GetEventsQueryHandlerTests
         var repository = new FakeEventRepository();
         var handler = new GetEventsQueryHandler(repository);
 
-        var filter = new GetEventsFilter("Istanbul", Guid.NewGuid(), true, 2, 5);
+        var filter = new GetEventsFilter("Istanbul", Guid.NewGuid(), true, true, null, 2, 5);
 
         var result = await handler.Handle(new GetEventsQuery(filter), CancellationToken.None);
 
@@ -45,6 +45,8 @@ public class GetEventsQueryHandlerTests
             string? city,
             Guid? categoryId,
             bool? isFeatured,
+            bool? isApproved,
+            string? title,
             int page,
             int pageSize,
             CancellationToken cancellationToken = default)
@@ -54,7 +56,7 @@ public class GetEventsQueryHandlerTests
 
             var items = new List<EventListItemDto>
             {
-                new(Guid.NewGuid(), "Fake", 10, DateTime.UtcNow, city ?? "Unknown", "Concert", isFeatured ?? false)
+                new(Guid.NewGuid(), "Fake", 10, DateTime.UtcNow, city ?? "Unknown", "Concert", isFeatured ?? false, false)
             };
 
             return Task.FromResult(new PagedResult<EventListItemDto>(items, page, pageSize, 1));
@@ -68,5 +70,11 @@ public class GetEventsQueryHandlerTests
 
         public Task<IList<MonthlySummaryDto>> GetMonthlyEventSummaryAsync(DateTime from, CancellationToken cancellationToken = default)
             => Task.FromResult<IList<MonthlySummaryDto>>([]);
+        
+        public Task UpdateAsync(Event eventEntity, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public Task<IList<CategoryDto>> GetCategoriesAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IList<CategoryDto>>([]);
     }
 }

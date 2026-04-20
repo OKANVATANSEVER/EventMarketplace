@@ -19,11 +19,13 @@ public class EventsController(IMediator mediator) : CustomBaseController
         [FromQuery] string? city,
         [FromQuery] Guid? categoryId,
         [FromQuery] bool? isFeatured,
+        [FromQuery] bool? isApproved,
+        [FromQuery] string? title,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        var filter = new GetEventsFilter(city, categoryId, isFeatured, page, pageSize);
+        var filter = new GetEventsFilter(city, categoryId, isFeatured, isApproved, title, page, pageSize);
         var events = await mediator.Send(new GetEventsQuery(filter), cancellationToken);
         return ActionResultInstance(CustomResponse<object>.Success(events, 200));
     }
@@ -40,6 +42,8 @@ public class EventsController(IMediator mediator) : CustomBaseController
         if (string.IsNullOrWhiteSpace(organizerId))
             return ActionResultInstance(CustomResponse<NoContent>.Fail("Organizer identity is missing.", 401, true));
 
+        var isApproved = User.IsInRole("Admin") && request.IsApproved;
+
         var command = new CreateEventCommand(
             request.Title,
             request.Description,
@@ -49,7 +53,8 @@ public class EventsController(IMediator mediator) : CustomBaseController
             request.City,
             request.CategoryId,
             organizerId,
-            request.IsFeatured);
+            request.IsFeatured,
+            isApproved);
 
         var id = await mediator.Send(command, cancellationToken);
         return ActionResultInstance(CustomResponse<object>.Success(new { id }, 201));
@@ -71,7 +76,8 @@ public class EventsController(IMediator mediator) : CustomBaseController
             request.EndDate,
             request.City,
             request.CategoryId,
-            request.IsFeatured), cancellationToken);
+            request.IsFeatured,
+            request.IsApproved), cancellationToken);
 
         return ActionResultInstance(CustomResponse<NoContent>.Success(200));
     }

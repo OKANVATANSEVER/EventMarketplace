@@ -27,6 +27,7 @@ public sealed class GetEventByIdQueryHandler(IEventRepository eventRepository)
             eventEntity.CategoryId,
             eventEntity.Category?.Name ?? string.Empty,
             eventEntity.OrganizerId,
-            eventEntity.IsFeatured);
+            eventEntity.IsFeatured,
+            eventEntity.IsApproved);
     }
 }

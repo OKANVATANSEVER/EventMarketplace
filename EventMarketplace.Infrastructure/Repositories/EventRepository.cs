@@ -29,6 +29,8 @@ public sealed class EventRepository(ApplicationDbContext dbContext) : IEventRepo
         string? city,
         Guid? categoryId,
         bool? isFeatured,
+        bool? isApproved,
+        string? title,
         int page,
         int pageSize,
         CancellationToken cancellationToken = default)
@@ -44,10 +46,16 @@ public sealed class EventRepository(ApplicationDbContext dbContext) : IEventRepo
         if (isFeatured.HasValue)
             query = query.Where(e => e.IsFeatured == isFeatured.Value);
 
+        if (isApproved.HasValue)
+            query = query.Where(e => e.IsApproved == isApproved.Value);
+
+        if (!string.IsNullOrWhiteSpace(title))
+            query = query.Where(e => e.Title.Contains(title));
+
         var totalCount = await query.CountAsync(cancellationToken);
 
         var items = await query
-            .OrderBy(e => e.StartDate)
+            .OrderByDescending(e => e.StartDate)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(e => new EventListItemDto(
@@ -57,7 +65,8 @@ public sealed class EventRepository(ApplicationDbContext dbContext) : IEventRepo
                 e.StartDate,
                 e.City,
                 e.Category != null ? e.Category.Name : string.Empty,
-                e.IsFeatured))
+                e.IsFeatured,
+                e.IsApproved))
             .ToListAsync(cancellationToken);
 
             return new PagedResult<EventListItemDto>(items, page, pageSize, totalCount);
@@ -77,7 +86,8 @@ public sealed class EventRepository(ApplicationDbContext dbContext) : IEventRepo
                 e.StartDate,
                 e.City,
                 e.Category != null ? e.Category.Name : string.Empty,
-                e.IsFeatured))
+                e.IsFeatured,
+                e.IsApproved))
             .ToListAsync(cancellationToken);
     }
 

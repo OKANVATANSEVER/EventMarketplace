@@ -12,6 +12,7 @@ public class Event
     public Guid CategoryId { get; set; }
     public string OrganizerId { get; set; } = string.Empty;
     public bool IsFeatured { get; set; }
+    public bool IsApproved { get; set; }
 
     // Navigation properties
     public Category? Category { get; set; }

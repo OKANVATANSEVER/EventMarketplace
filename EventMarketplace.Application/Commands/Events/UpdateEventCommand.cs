@@ -11,4 +11,5 @@ public sealed record UpdateEventCommand(
     DateTime EndDate,
     string City,
     Guid CategoryId,
-    bool IsFeatured) : IRequest<bool>;
+    bool IsFeatured,
+    bool IsApproved) : IRequest<bool>;

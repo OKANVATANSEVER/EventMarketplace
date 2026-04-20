@@ -50,11 +50,14 @@ public sealed class ApiClient(HttpClient http, TokenStore tokenStore)
     // ── EVENTS (public) ─────────────────────────────────────────────────────
 
     public async Task<PagedResultModel<EventListItemModel>?> GetEventsAsync(
-        string? city = null, bool? isFeatured = null, int page = 1, int pageSize = 9)
+        string? city = null, Guid? categoryId = null, bool? isFeatured = null, bool? isApproved = null, string? title = null, int page = 1, int pageSize = 9)
     {
         var url = $"api/events?page={page}&pageSize={pageSize}";
         if (!string.IsNullOrWhiteSpace(city)) url += $"&city={Uri.EscapeDataString(city)}";
+        if (categoryId.HasValue) url += $"&categoryId={categoryId.Value}";
         if (isFeatured.HasValue) url += $"&isFeatured={isFeatured.Value}";
+        if (isApproved.HasValue) url += $"&isApproved={isApproved.Value}";
+        if (!string.IsNullOrWhiteSpace(title)) url += $"&title={Uri.EscapeDataString(title)}";
 
         var response = await http.GetAsync(url);
         if (!response.IsSuccessStatusCode) return null;
@@ -145,11 +148,11 @@ public sealed class ApiClient(HttpClient http, TokenStore tokenStore)
     public async Task<(bool Success, string Error)> CreateEventAsync(
         string title, string description, decimal price,
         DateTime startDate, DateTime endDate, string city,
-        Guid categoryId, bool isFeatured,
+        Guid categoryId, bool isFeatured, bool isApproved,
         CancellationToken ct = default)
     {
         AttachAuth();
-        var body = new { title, description, price, startDate, endDate, city, categoryId, isFeatured };
+        var body = new { title, description, price, startDate, endDate, city, categoryId, isFeatured, isApproved };
         var response = await http.PostAsJsonAsync("api/events", body, Json, ct);
         if (response.IsSuccessStatusCode) return (true, string.Empty);
         var err = await response.Content.ReadAsStringAsync(ct);
@@ -159,11 +162,11 @@ public sealed class ApiClient(HttpClient http, TokenStore tokenStore)
     public async Task<(bool Success, string Error)> UpdateEventAsync(
         Guid id, string title, string description, decimal price,
         DateTime startDate, DateTime endDate, string city,
-        Guid categoryId, bool isFeatured,
+        Guid categoryId, bool isFeatured, bool isApproved,
         CancellationToken ct = default)
     {
         AttachAuth();
-        var body = new { title, description, price, startDate, endDate, city, categoryId, isFeatured };
+        var body = new { title, description, price, startDate, endDate, city, categoryId, isFeatured, isApproved };
         var response = await http.PutAsJsonAsync($"api/events/{id}", body, Json, ct);
         if (response.IsSuccessStatusCode) return (true, string.Empty);
         var err = await response.Content.ReadAsStringAsync(ct);

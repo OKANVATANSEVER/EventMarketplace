@@ -11,4 +11,5 @@ public sealed record CreateEventCommand(
     string City,
     Guid CategoryId,
     string OrganizerId,
-    bool IsFeatured) : IRequest<Guid>;
+    bool IsFeatured,
+    bool IsApproved) : IRequest<Guid>;

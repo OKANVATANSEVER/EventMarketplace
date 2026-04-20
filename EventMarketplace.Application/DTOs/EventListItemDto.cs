@@ -7,4 +7,5 @@ public sealed record EventListItemDto(
     DateTime StartDate,
     string City,
     string CategoryName,
-    bool IsFeatured);
+    bool IsFeatured,
+    bool IsApproved);

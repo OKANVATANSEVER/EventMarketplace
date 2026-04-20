@@ -21,6 +21,7 @@ public class CreateEventValidatorTests
             "Istanbul",
             Guid.NewGuid(),
             Guid.NewGuid().ToString(),
+            false,
             false);
 
         var result = _validator.Validate(command);
@@ -40,6 +41,7 @@ public class CreateEventValidatorTests
             "Istanbul",
             Guid.NewGuid(),
             Guid.NewGuid().ToString(),
+            false,
             false);
 
         var result = _validator.Validate(command);

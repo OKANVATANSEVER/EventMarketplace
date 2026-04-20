@@ -2,7 +2,7 @@
 @layout AdminLayout
 @rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
-@inject AdminStatsService StatsService
+@inject ApiClient Api
 
 <PageTitle>Admin Dashboard</PageTitle>
 
@@ -13,58 +13,156 @@
         <p>Veriler yükleniyor...</p>
     </div>
 }
-else if (_stats is null)
+else if (!string.IsNullOrWhiteSpace(_error))
 {
-    <div class="em-alert em-alert-error">Veriler yüklenemedi.</div>
+    <div class="em-alert em-alert-error">@_error</div>
 }
 else
 {
     <div class="em-dashboard">
-        <h1 class="em-page-title">📊 Dashboard</h1>
-        <p class="em-page-subtitle">@DateTime.Now.ToString("MMMM yyyy") özeti</p>
+        <div class="em-page-header">
+            <div>
+                <h1 class="em-page-title">📊 Dashboard</h1>
+                <p class="em-page-subtitle">@PeriodLabel özeti</p>
+            </div>
+            <div class="em-filter-row">
+                <select class="em-input" @bind="_periodType">
+                    <option value="@PeriodType.Day">Günlük</option>
+                    <option value="@PeriodType.Month">Aylık</option>
+                    <option value="@PeriodType.Year">Yıllık</option>
+                </select>
 
-        <!-- KPI Cards -->
+                @if (_periodType == PeriodType.Day)
+                {
+                    <input type="date" class="em-input" @bind="_selectedDay" />
+                }
+                else if (_periodType == PeriodType.Month)
+                {
+                    <input type="number" class="em-input" @bind="_selectedYear" min="2000" max="2100" />
+                    <select class="em-input" @bind="_selectedMonth">
+                        @for (var m = 1; m <= 12; m++)
+                        {
+                            <option value="@m">@m</option>
+                        }
+                    </select>
+                }
+                else
+                {
+                    <input type="number" class="em-input" @bind="_selectedYear" min="2000" max="2100" />
+                }
+            </div>
+        </div>
+
         <div class="em-kpi-grid">
             <div class="em-kpi-card em-kpi-purple">
-                <div class="em-kpi-icon">👥</div>
+                <div class="em-kpi-icon">🎪</div>
                 <div>
-                    <div class="em-kpi-value">@_stats.TotalMembers</div>
-                    <div class="em-kpi-label">Toplam Üye</div>
+                    <div class="em-kpi-value">@EventsInPeriod.Count</div>
+                    <div class="em-kpi-label">Dönem Etkinliği</div>
                 </div>
             </div>
             <div class="em-kpi-card em-kpi-green">
-                <div class="em-kpi-icon">🆕</div>
+                <div class="em-kpi-icon">📆</div>
                 <div>
-                    <div class="em-kpi-value">@_stats.NewMembersThisMonth</div>
-                    <div class="em-kpi-label">Bu Ay Yeni Üye</div>
+                    <div class="em-kpi-value">@EventsInYear.Count</div>
+                    <div class="em-kpi-label">Yıllık Etkinlik</div>
                 </div>
             </div>
             <div class="em-kpi-card em-kpi-blue">
-                <div class="em-kpi-icon">🎪</div>
+                <div class="em-kpi-icon">📈</div>
                 <div>
-                    <div class="em-kpi-value">@_stats.TotalEventsThisMonth</div>
-                    <div class="em-kpi-label">Bu Ayki Etkinlik</div>
+                    <div class="em-kpi-value">%@EventPeriodRate.ToString("0.0")</div>
+                    <div class="em-kpi-label">Dönem/Yıl Etkinlik Oranı</div>
                 </div>
             </div>
             <div class="em-kpi-card em-kpi-orange">
-                <div class="em-kpi-icon">📂</div>
+                <div class="em-kpi-icon">👤</div>
                 <div>
-                    <div class="em-kpi-value">@_stats.EventsByCategory.Count</div>
-                    <div class="em-kpi-label">Aktif Kategori</div>
+                    <div class="em-kpi-value">@MembersInPeriod.Count</div>
+                    <div class="em-kpi-label">Dönem Yeni Üye</div>
+                </div>
+            </div>
+            <div class="em-kpi-card em-kpi-green">
+                <div class="em-kpi-icon">🗓</div>
+                <div>
+                    <div class="em-kpi-value">@MembersInYear.Count</div>
+                    <div class="em-kpi-label">Yıllık Yeni Üye</div>
+                </div>
+            </div>
+            <div class="em-kpi-card em-kpi-purple">
+                <div class="em-kpi-icon">📊</div>
+                <div>
+                    <div class="em-kpi-value">%@MemberPeriodRate.ToString("0.0")</div>
+                    <div class="em-kpi-label">Dönem/Yıl Üye Oranı</div>
                 </div>
             </div>
         </div>
 
         <div class="em-dashboard-grid">
-            <!-- Kategori Dağılımı -->
             <div class="em-card">
                 <div class="em-card-header">
-                    <h2>🏷 Bu Ay Kategorilere Göre Etkinlikler</h2>
+                    <h2>⚙ Etkinlik Durumu (Dönem)</h2>
                 </div>
                 <div class="em-card-body">
-                    @if (!_stats.EventsByCategory.Any())
+                    <div class="em-kpi-grid em-kpi-compact">
+                        <div class="em-kpi-card em-kpi-green">
+                            <div>
+                                <div class="em-kpi-value">@EventActiveCount</div>
+                                <div class="em-kpi-label">Aktif</div>
+                            </div>
+                        </div>
+                        <div class="em-kpi-card em-kpi-orange">
+                            <div>
+                                <div class="em-kpi-value">@EventPendingCount</div>
+                                <div class="em-kpi-label">Aktif Bekleyen</div>
+                            </div>
+                        </div>
+                        <div class="em-kpi-card em-kpi-purple">
+                            <div>
+                                <div class="em-kpi-value">@EventPassiveCount</div>
+                                <div class="em-kpi-label">Pasif</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="em-card">
+                <div class="em-card-header">
+                    <h2>👥 Üye Durumu (Dönem)</h2>
+                </div>
+                <div class="em-card-body">
+                    <div class="em-kpi-grid em-kpi-compact">
+                        <div class="em-kpi-card em-kpi-green">
+                            <div>
+                                <div class="em-kpi-value">@MemberActiveCount</div>
+                                <div class="em-kpi-label">Aktif</div>
+                            </div>
+                        </div>
+                        <div class="em-kpi-card em-kpi-purple">
+                            <div>
+                                <div class="em-kpi-value">@MemberPassiveCount</div>
+                                <div class="em-kpi-label">Pasif</div>
+                            </div>
+                        </div>
+                        <div class="em-kpi-card em-kpi-blue">
+                            <div>
+                                <div class="em-kpi-value">@MembersInPeriod.Count</div>
+                                <div class="em-kpi-label">Yeni Kayıt</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="em-card">
+                <div class="em-card-header">
+                    <h2>🏷 Dönemde Kategori Dağılımı</h2>
+                </div>
+                <div class="em-card-body">
+                    @if (!EventsByCategory.Any())
                     {
-                        <p class="em-empty">Bu ay henüz etkinlik bulunmuyor.</p>
+                        <p class="em-empty">Bu dönem için etkinlik bulunmuyor.</p>
                     }
                     else
                     {
@@ -77,10 +175,10 @@ else
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach (var cat in _stats.EventsByCategory)
+                                @foreach (var cat in EventsByCategory)
                                 {
-                                    var pct = _stats.TotalEventsThisMonth > 0
-                                        ? (int)((double)cat.EventCount / _stats.TotalEventsThisMonth * 100)
+                                    var pct = EventsInPeriod.Count > 0
+                                        ? (int)((double)cat.EventCount / EventsInPeriod.Count * 100)
                                         : 0;
                                     <tr>
                                         <td><span class="em-badge">@cat.CategoryName</span></td>
@@ -99,21 +197,20 @@ else
                 </div>
             </div>
 
-            <!-- Aylık Etkinlik Grafiği -->
             <div class="em-card">
                 <div class="em-card-header">
                     <h2>📈 Son 12 Ay Etkinlik Trendi</h2>
                 </div>
                 <div class="em-card-body">
-                    @if (!_stats.MonthlyEventSummary.Any())
+                    @if (!MonthlyEventSummary.Any())
                     {
                         <p class="em-empty">Henüz yeterli veri bulunmuyor.</p>
                     }
                     else
                     {
-                        var maxCount = _stats.MonthlyEventSummary.Max(m => m.EventCount);
+                        var maxCount = MonthlyEventSummary.Max(m => m.EventCount);
                         <div class="em-bar-chart">
-                            @foreach (var month in _stats.MonthlyEventSummary)
+                            @foreach (var month in MonthlyEventSummary)
                             {
                                 var height = maxCount > 0 ? (int)((double)month.EventCount / maxCount * 100) : 0;
                                 <div class="em-bar-item">
@@ -130,16 +227,52 @@ else
             </div>
         </div>
 
-        <!-- Bu Ay Kayıt Olan Yeni Üyeler -->
         <div class="em-card em-mt">
             <div class="em-card-header">
-                <h2>🆕 Bu Ay Kayıt Olan Üyeler</h2>
+                <h2>🆕 Dönemde Eklenen Etkinlikler</h2>
+                <a href="/admin/events" class="em-btn-link">Tümünü Gör →</a>
+            </div>
+            <div class="em-card-body">
+                @if (!EventsInPeriod.Any())
+                {
+                    <p class="em-empty">Bu dönem için etkinlik bulunmuyor.</p>
+                }
+                else
+                {
+                    <table class="em-table">
+                        <thead>
+                            <tr>
+                                <th>Etkinlik</th>
+                                <th>Kategori</th>
+                                <th>Tarih</th>
+                                <th>Durum</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var ev in EventsInPeriod.OrderByDescending(x => x.StartDate).Take(8))
+                            {
+                                <tr>
+                                    <td>@ev.Title</td>
+                                    <td><span class="em-badge">@ev.CategoryName</span></td>
+                                    <td>@ev.StartDate.ToString("dd.MM.yyyy HH:mm")</td>
+                                    <td><span class="em-badge @EventStatusClass(ev)">@EventStatusText(ev)</span></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+        </div>
+
+        <div class="em-card em-mt">
+            <div class="em-card-header">
+                <h2>🆕 Dönemde Kayıt Olan Üyeler</h2>
                 <a href="/admin/members" class="em-btn-link">Tümünü Gör →</a>
             </div>
             <div class="em-card-body">
-                @if (!_stats.NewMembers.Any())
+                @if (!MembersInPeriod.Any())
                 {
-                    <p class="em-empty">Bu ay henüz yeni üye kaydı yok.</p>
+                    <p class="em-empty">Bu dönem için yeni üye kaydı yok.</p>
                 }
                 else
                 {
@@ -148,21 +281,20 @@ else
                             <tr>
                                 <th>Ad Soyad</th>
                                 <th>E-posta</th>
-                                <th>Rol</th>
+                                <th>Durum</th>
                                 <th>Kayıt Tarihi</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var member in _stats.NewMembers)
+                            @foreach (var member in MembersInPeriod.OrderByDescending(x => x.CreatedDate).Take(10))
                             {
                                 <tr>
                                     <td>@member.FirstName @member.LastName</td>
                                     <td>@member.Email</td>
                                     <td>
-                                        @foreach (var role in member.Roles)
-                                        {
-                                            <span class="em-badge em-badge-role">@role</span>
-                                        }
+                                        <span class="em-badge @(member.IsActive ? "em-badge-active" : "em-badge-admin")">
+                                            @(member.IsActive ? "Aktif" : "Pasif")
+                                        </span>
                                     </td>
                                     <td>@member.CreatedDate.ToString("dd.MM.yyyy HH:mm")</td>
                                 </tr>
@@ -176,14 +308,131 @@ else
 }
 
 @code {
-    private AdminDashboardStatsModel? _stats;
+    private enum PeriodType
+    {
+        Day,
+        Month,
+        Year
+    }
+
+    private List<MemberModel> _allMembers = [];
+    private List<EventListItemModel> _allEvents = [];
     private bool _loading = true;
+    private string _error = string.Empty;
+
+    private PeriodType _periodType = PeriodType.Month;
+    private DateTime _selectedDay = DateTime.Today;
+    private int _selectedYear = DateTime.Today.Year;
+    private int _selectedMonth = DateTime.Today.Month;
+
+    private DateTime Now => DateTime.Now;
+
+    private (DateTime Start, DateTime End) PeriodRange
+    {
+        get
+        {
+            if (_periodType == PeriodType.Day)
+            {
+                var start = _selectedDay.Date;
+                return (start, start.AddDays(1));
+            }
+
+            if (_periodType == PeriodType.Month)
+            {
+                var start = new DateTime(_selectedYear, _selectedMonth, 1);
+                return (start, start.AddMonths(1));
+            }
+
+            var yearStart = new DateTime(_selectedYear, 1, 1);
+            return (yearStart, yearStart.AddYears(1));
+        }
+    }
+
+    private DateTime YearStart => new DateTime(PeriodRange.Start.Year, 1, 1);
+    private DateTime YearEnd => YearStart.AddYears(1);
+
+    private List<EventListItemModel> EventsInPeriod
+        => _allEvents.Where(e => e.StartDate >= PeriodRange.Start && e.StartDate < PeriodRange.End).ToList();
+
+    private List<EventListItemModel> EventsInYear
+        => _allEvents.Where(e => e.StartDate >= YearStart && e.StartDate < YearEnd).ToList();
+
+    private List<MemberModel> MembersInPeriod
+        => _allMembers.Where(m => m.CreatedDate >= PeriodRange.Start && m.CreatedDate < PeriodRange.End).ToList();
+
+    private List<MemberModel> MembersInYear
+        => _allMembers.Where(m => m.CreatedDate >= YearStart && m.CreatedDate < YearEnd).ToList();
+
+    private double EventPeriodRate => EventsInYear.Count == 0 ? 0 : (double)EventsInPeriod.Count / EventsInYear.Count * 100;
+    private double MemberPeriodRate => MembersInYear.Count == 0 ? 0 : (double)MembersInPeriod.Count / MembersInYear.Count * 100;
+
+    private int EventActiveCount => EventsInPeriod.Count(e => e.IsApproved);
+    private int EventPendingCount => EventsInPeriod.Count(e => !e.IsApproved && e.StartDate >= Now);
+    private int EventPassiveCount => EventsInPeriod.Count(e => !e.IsApproved && e.StartDate < Now);
+
+    private int MemberActiveCount => MembersInPeriod.Count(m => m.IsActive);
+    private int MemberPassiveCount => MembersInPeriod.Count(m => !m.IsActive);
+
+    private List<CategoryEventCountModel> EventsByCategory
+        => EventsInPeriod
+            .GroupBy(e => string.IsNullOrWhiteSpace(e.CategoryName) ? "Kategorisiz" : e.CategoryName)
+            .Select(g => new CategoryEventCountModel(g.Key, g.Count()))
+            .OrderByDescending(x => x.EventCount)
+            .ToList();
+
+    private List<MonthlySummaryModel> MonthlyEventSummary
+        => _allEvents
+            .Where(e => e.StartDate >= DateTime.Today.AddMonths(-11))
+            .GroupBy(e => new { e.StartDate.Year, e.StartDate.Month })
+            .Select(g => new MonthlySummaryModel(
+                g.Key.Year,
+                g.Key.Month,
+                new DateTime(g.Key.Year, g.Key.Month, 1).ToString("MMM yyyy"),
+                g.Count()))
+            .OrderBy(x => x.Year)
+            .ThenBy(x => x.Month)
+            .ToList();
+
+    private string PeriodLabel
+    {
+        get
+        {
+            if (_periodType == PeriodType.Day)
+                return _selectedDay.ToString("dd MMMM yyyy");
+
+            if (_periodType == PeriodType.Month)
+                return new DateTime(_selectedYear, _selectedMonth, 1).ToString("MMMM yyyy");
+
+            return _selectedYear.ToString();
+        }
+    }
+
+    private string EventStatusText(EventListItemModel ev)
+    {
+        if (ev.IsApproved) return "Aktif";
+        return ev.StartDate >= Now ? "Aktif Bekleyen" : "Pasif";
+    }
+
+    private string EventStatusClass(EventListItemModel ev)
+    {
+        if (ev.IsApproved) return "em-badge-active";
+        return ev.StartDate >= Now ? "em-badge-new" : "em-badge-admin";
+    }
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            _stats = await StatsService.GetDashboardStatsAsync();
+            var eventsTask = Api.GetAllEventsAdminAsync();
+            var membersTask = Api.GetAllMembersAsync();
+            await Task.WhenAll(eventsTask, membersTask);
+
+            _allEvents = eventsTask.Result;
+            _allMembers = membersTask.Result;
+        }
+        catch (Exception ex)
+        {
+            _error = $"Veriler yüklenemedi: {ex.Message}";
         }
         finally
         {

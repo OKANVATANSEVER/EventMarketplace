@@ -55,7 +55,8 @@ public sealed class DevelopmentDataSeeder(ApplicationDbContext dbContext)
                 City = Cities[random.Next(Cities.Length)],
                 CategoryId = category.Id,
                 OrganizerId = adminUserId,
-                IsFeatured = idx % 3 == 0
+                IsFeatured = idx % 3 == 0,
+                IsApproved = idx % 2 == 0
             });
         }
 

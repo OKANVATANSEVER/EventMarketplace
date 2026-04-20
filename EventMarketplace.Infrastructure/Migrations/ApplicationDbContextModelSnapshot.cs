@@ -87,6 +87,11 @@ namespace EventMarketplace.Infrastructure.Migrations
                     b.Property<DateTime>("EndDate")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<bool>("IsApproved")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false);
+
                     b.Property<bool>("IsFeatured")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
@@ -113,6 +118,8 @@ namespace EventMarketplace.Infrastructure.Migrations
                     b.HasIndex("CategoryId");
 
                     b.HasIndex("City");
+
+                    b.HasIndex("IsApproved");
 
                     b.HasIndex("IsFeatured");
 

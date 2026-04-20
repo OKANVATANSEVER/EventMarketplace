@@ -47,6 +47,7 @@
                                 <th>Şehir</th>
                                 <th>Tarih</th>
                                 <th>Fiyat</th>
+                                <th>Onay Durumu</th>
                                 <th>İşlemler</th>
                             </tr>
                         </thead>
@@ -65,7 +66,26 @@
                                     <td>@ev.City</td>
                                     <td>@ev.StartDate.ToString("dd.MM.yyyy HH:mm")</td>
                                     <td>@(ev.Price == 0 ? "Ücretsiz" : $"₺{ev.Price:N2}")</td>
+                                    <td>
+                                        @if (ev.IsApproved)
+                                        {
+                                            <span class="em-badge em-badge-active">Onaylı</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="em-badge em-badge-new">Bekliyor</span>
+                                        }
+                                    </td>
                                     <td class="em-actions">
+                                        <button class="em-btn-sm em-btn-success"
+                                                @onclick="() => ApproveEvent(ev)"
+                                                disabled="@ev.IsApproved">
+                                            @(ev.IsApproved ? "✅ Onaylandı" : "✅ Onayla")
+                                        </button>
+                                        <button class="em-btn-sm @(ev.IsApproved ? "em-btn-primary" : "em-btn-secondary")"
+                                                @onclick="() => ToggleActive(ev)">
+                                            @(ev.IsApproved ? "🔴 Pasif Yap" : "🟢 Aktif Yap")
+                                        </button>
                                         <button class="em-btn-sm em-btn-secondary"
                                                 @onclick="() => OpenEdit(ev)">
                                             ✏️ Düzenle
@@ -141,6 +161,12 @@
                             Öne Çıkan Etkinlik
                         </label>
                     </div>
+                    <div class="em-form-group em-checkbox-group">
+                        <label>
+                            <input type="checkbox" @bind="_form.IsApproved" />
+                            Onaylandı (Aktif)
+                        </label>
+                    </div>
                 </div>
             </div>
             <div class="em-modal-footer">
@@ -204,6 +230,7 @@
             EndDate = ev.StartDate.AddHours(2),
             Price = ev.Price,
             IsFeatured = ev.IsFeatured,
+            IsApproved = ev.IsApproved,
             CategoryId = cat?.Id ?? Guid.Empty
         };
         _formError = string.Empty;
@@ -232,7 +259,7 @@
         {
             var (ok, err) = await Api.UpdateEventAsync(
                 _editingId.Value, _form.Title, _form.Description, _form.Price,
-                _form.StartDate, _form.EndDate, _form.City, _form.CategoryId, _form.IsFeatured);
+                _form.StartDate, _form.EndDate, _form.City, _form.CategoryId, _form.IsFeatured, _form.IsApproved);
 
             if (!ok) { _formError = "Güncelleme başarısız: " + err; _saving = false; return; }
             _toastMessage = "✅ Etkinlik güncellendi.";
@@ -241,7 +268,7 @@
         {
             var (ok, err) = await Api.CreateEventAsync(
                 _form.Title, _form.Description, _form.Price,
-                _form.StartDate, _form.EndDate, _form.City, _form.CategoryId, _form.IsFeatured);
+                _form.StartDate, _form.EndDate, _form.City, _form.CategoryId, _form.IsFeatured, _form.IsApproved);
 
             if (!ok) { _formError = "Oluşturma başarısız: " + err; _saving = false; return; }
             _toastMessage = "✅ Yeni etkinlik oluşturuldu.";
@@ -269,6 +296,100 @@
         _notifying = null;
     }
 
+    private async Task ApproveEvent(EventListItemModel ev)
+    {
+        if (ev.IsApproved)
+            return;
+
+        _toastMessage = string.Empty;
+        StateHasChanged();
+
+        var details = await Api.GetEventByIdAsync(ev.Id);
+        if (details is null)
+        {
+            _toastMessage = "⚠️ Etkinlik detayları alınamadı.";
+            _toastSuccess = false;
+            return;
+        }
+
+        var categoryId = _categories.FirstOrDefault(c => c.Name == details.CategoryName)?.Id ?? Guid.Empty;
+        if (categoryId == Guid.Empty)
+        {
+            _toastMessage = "⚠️ Etkinlik kategorisi çözümlenemedi.";
+            _toastSuccess = false;
+            return;
+        }
+
+        var (ok, err) = await Api.UpdateEventAsync(
+            ev.Id,
+            details.Title,
+            details.Description,
+            details.Price,
+            details.StartDate,
+            details.EndDate,
+            details.City,
+            categoryId,
+            details.IsFeatured,
+            true);
+
+        if (!ok)
+        {
+            _toastMessage = "⚠️ Onaylama başarısız: " + err;
+            _toastSuccess = false;
+            return;
+        }
+
+        _events = await Api.GetAllEventsAdminAsync();
+        _toastMessage = $"✅ '{ev.Title}' etkinliği onaylandı.";
+        _toastSuccess = true;
+    }
+
+    private async Task ToggleActive(EventListItemModel ev)
+    {
+        _toastMessage = string.Empty;
+        StateHasChanged();
+
+        var details = await Api.GetEventByIdAsync(ev.Id);
+        if (details is null)
+        {
+            _toastMessage = "⚠️ Etkinlik detayları alınamadı.";
+            _toastSuccess = false;
+            return;
+        }
+
+        var categoryId = _categories.FirstOrDefault(c => c.Name == details.CategoryName)?.Id ?? Guid.Empty;
+        if (categoryId == Guid.Empty)
+        {
+            _toastMessage = "⚠️ Etkinlik kategorisi çözümlenemedi.";
+            _toastSuccess = false;
+            return;
+        }
+
+        var newApprovedStatus = !ev.IsApproved;
+        var (ok, err) = await Api.UpdateEventAsync(
+            ev.Id,
+            details.Title,
+            details.Description,
+            details.Price,
+            details.StartDate,
+            details.EndDate,
+            details.City,
+            categoryId,
+            details.IsFeatured,
+            newApprovedStatus);
+
+        if (!ok)
+        {
+            _toastMessage = "⚠️ Durumu değiştirme başarısız: " + err;
+            _toastSuccess = false;
+            return;
+        }
+
+        _events = await Api.GetAllEventsAdminAsync();
+        _toastMessage = $"✅ '{ev.Title}' etkinliği {(newApprovedStatus ? "aktif" : "pasif")} yapıldı.";
+        _toastSuccess = true;
+    }
+
     private sealed class EventFormModel
     {
         public string Title { get; set; } = string.Empty;
@@ -279,5 +400,6 @@
         public string City { get; set; } = string.Empty;
         public Guid CategoryId { get; set; }
         public bool IsFeatured { get; set; }
+        public bool IsApproved { get; set; }
     }
 }

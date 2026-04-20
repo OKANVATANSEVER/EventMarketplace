@@ -8,4 +8,5 @@ public sealed record CreateEventRequest(
     DateTime EndDate,
     string City,
     Guid CategoryId,
-    bool IsFeatured);
+    bool IsFeatured,
+    bool IsApproved = false);

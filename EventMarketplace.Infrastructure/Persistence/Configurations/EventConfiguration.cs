@@ -44,6 +44,10 @@ public sealed class EventConfiguration : IEntityTypeConfiguration<Event>
             .HasDefaultValue(false)
             .IsRequired();
 
+        builder.Property(x => x.IsApproved)
+            .HasDefaultValue(false)
+            .IsRequired();
+
         // Relationship: Event belongs to Category
         builder.HasOne(e => e.Category)
             .WithMany(c => c.Events)
@@ -61,6 +65,7 @@ public sealed class EventConfiguration : IEntityTypeConfiguration<Event>
         builder.HasIndex(x => x.CategoryId);
         builder.HasIndex(x => x.OrganizerId);
         builder.HasIndex(x => x.IsFeatured);
+        builder.HasIndex(x => x.IsApproved);
         builder.HasIndex(x => x.StartDate);
     }
 }
