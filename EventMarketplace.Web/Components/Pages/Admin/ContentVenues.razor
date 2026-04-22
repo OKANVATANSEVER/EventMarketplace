@@ -1,0 +1,138 @@
+@page "/admin/content/venues"
+@layout AdminLayout
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+@inject ApiClient Api
+
+<PageTitle>Populer Mekanlar</PageTitle>
+
+<h1 class="em-page-title">Populer Mekanlar</h1>
+<p class="em-page-subtitle">Anasayfada gosterilen mekan kartlarini buradan yonetin.</p>
+
+<AdminContentNav />
+
+@if (!string.IsNullOrWhiteSpace(_info))
+{
+    <div class="em-alert em-alert-success">@_info</div>
+}
+
+<section class="mkt-section">
+    <div class="mkt-form-grid">
+        <input class="em-input" placeholder="Mekan Adi" @bind="_name" />
+        <input class="em-input" placeholder="Sehir" @bind="_city" />
+        <input class="em-input" placeholder="Etiket" @bind="_tag" />
+        <input class="em-input" placeholder="Gorsel URL" @bind="_imageUrl" />
+        <input class="em-input" type="number" min="0" @bind="_sortOrder" />
+        <label class="mkt-muted"><input type="checkbox" @bind="_isActive" /> Aktif</label>
+        <button type="button" class="mkt-btn mkt-btn-primary mkt-full" @onclick="SaveVenueAsync">@(_editingVenueId is null ? "Mekan Ekle" : "Mekan Guncelle")</button>
+    </div>
+</section>
+
+@if (_venues.Count > 0)
+{
+    <table class="em-table">
+        <thead>
+            <tr>
+                <th>Mekan</th>
+                <th>Sehir</th>
+                <th>Etiket</th>
+                <th>Durum</th>
+                <th>Sira</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var venue in _venues.OrderBy(x => x.SortOrder).ThenBy(x => x.Name))
+            {
+                <tr>
+                    <td>@venue.Name</td>
+                    <td>@venue.City</td>
+                    <td>@venue.Tag</td>
+                    <td><span class="em-status-dot @(venue.IsActive ? "active" : "passive")"></span>@(venue.IsActive ? "Aktif" : "Pasif")</td>
+                    <td>@venue.SortOrder</td>
+                    <td>
+                        <button type="button" class="em-btn-outline" @onclick="() => LoadVenueToForm(venue)">Duzenle</button>
+                        <button type="button" class="em-btn-outline" @onclick="() => ToggleVenueStatusAsync(venue)">@(venue.IsActive ? "Pasife Al" : "Aktife Al")</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <p class="mkt-muted">Henuz mekan eklenmemis.</p>
+}
+
+@code {
+    private string _name = string.Empty;
+    private string _city = string.Empty;
+    private string _tag = string.Empty;
+    private string? _imageUrl;
+    private int _sortOrder;
+    private bool _isActive = true;
+    private Guid? _editingVenueId;
+    private string _info = string.Empty;
+    private List<PopularVenueModel> _venues = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync();
+    }
+
+    private async Task RefreshAsync()
+    {
+        _venues = await Api.GetAdminPopularVenuesAsync();
+    }
+
+    private async Task SaveVenueAsync()
+    {
+        bool ok;
+        if (_editingVenueId is null)
+        {
+            ok = await Api.CreatePopularVenueAsync(_name, _city, _tag, _imageUrl, _sortOrder, _isActive);
+            _info = ok ? "Mekan eklendi." : "Mekan eklenemedi.";
+        }
+        else
+        {
+            ok = await Api.UpdatePopularVenueAsync(_editingVenueId.Value, _name, _city, _tag, _imageUrl, _sortOrder, _isActive);
+            _info = ok ? "Mekan guncellendi." : "Mekan guncellenemedi.";
+        }
+
+        if (!ok)
+            return;
+
+        ResetForm();
+        await RefreshAsync();
+    }
+
+    private void LoadVenueToForm(PopularVenueModel venue)
+    {
+        _editingVenueId = venue.Id;
+        _name = venue.Name;
+        _city = venue.City;
+        _tag = venue.Tag;
+        _imageUrl = venue.ImageUrl;
+        _sortOrder = venue.SortOrder;
+        _isActive = venue.IsActive;
+    }
+
+    private async Task ToggleVenueStatusAsync(PopularVenueModel venue)
+    {
+        var ok = await Api.UpdatePopularVenueAsync(venue.Id, venue.Name, venue.City, venue.Tag, venue.ImageUrl, venue.SortOrder, !venue.IsActive);
+        _info = ok ? "Mekan durumu guncellendi." : "Durum guncellenemedi.";
+        if (ok)
+            await RefreshAsync();
+    }
+
+    private void ResetForm()
+    {
+        _editingVenueId = null;
+        _name = string.Empty;
+        _city = string.Empty;
+        _tag = string.Empty;
+        _imageUrl = null;
+        _sortOrder = 0;
+        _isActive = true;
+    }
+}

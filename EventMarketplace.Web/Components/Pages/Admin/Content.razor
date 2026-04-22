@@ -2,303 +2,42 @@
 @layout AdminLayout
 @rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
-@inject ApiClient Api
 
 <PageTitle>Icerik Yonetimi</PageTitle>
 
 <h1 class="em-page-title">Icerik Yonetimi</h1>
+<p class="em-page-subtitle">Icerik alanlarini ayrı sayfalardan yonetin ve yayin durumlarini takip edin.</p>
 
-@if (!string.IsNullOrWhiteSpace(_info))
-{
-    <div class="em-alert em-alert-success">@_info</div>
-}
+<AdminContentNav />
+
+<section class="em-content-menu-grid">
+    <a class="em-content-menu-card" href="/admin/content/pages">
+        <strong>Sayfa Icerikleri</strong>
+        <span>About, contact ve privacy sayfalarini duzenleyin.</span>
+    </a>
+    <a class="em-content-menu-card" href="/admin/content/ad-slots">
+        <strong>Reklam Slotlari</strong>
+        <span>Aktif-pasif durumu ve yayin suresi takibiyle banner yonetimi.</span>
+    </a>
+    <a class="em-content-menu-card" href="/admin/content/featured-listings">
+        <strong>Sponsorlu Listing Slotu</strong>
+        <span>Homepage sponsorlu etkinlikleri silmeden yonetin.</span>
+    </a>
+    <a class="em-content-menu-card" href="/admin/content/inbox">
+        <strong>Mesaj Inbox</strong>
+        <span>Etkinlik bazli gelen tum mesajlari tek ekranda izleyin.</span>
+    </a>
+    <a class="em-content-menu-card" href="/admin/content/venues">
+        <strong>Populer Mekanlar</strong>
+        <span>Anasayfada gosterilen mekan kartlarini yonetin.</span>
+    </a>
+</section>
 
 <section class="mkt-section">
-    <h2>Sayfa Icerikleri</h2>
-    <div class="mkt-form-grid">
-        <select class="em-select" @bind="_selectedSlug" @bind:after="LoadPageAsync">
-            <option value="about">about</option>
-            <option value="contact">contact</option>
-            <option value="privacy">privacy</option>
-        </select>
-        <input class="em-input" placeholder="Baslik" @bind="_pageTitle" />
-        <textarea class="em-input mkt-full" placeholder="Icerik" @bind="_pageBody"></textarea>
-        <button type="button" class="mkt-btn mkt-btn-primary mkt-full" @onclick="SavePageAsync">Kaydet</button>
+    <div class="mkt-placement-guide">
+        <strong>Placement Kullanim Ozeti</strong>
+        <span><b>home-hero</b>: Ana sayfa banner reklam karti.</span>
+        <span><b>detail-sidebar</b>: Etkinlik detay sayfasi sag blok reklam karti.</span>
+        <span><b>home-carousel</b>: Ana sayfa sponsorlu etkinlik carousel alani.</span>
     </div>
 </section>
-
-<section class="mkt-section">
-    <h2>Reklam Slotlari</h2>
-    <div class="mkt-form-grid">
-        <input class="em-input" placeholder="Placement (home-hero)" @bind="_adPlacement" />
-        <input class="em-input" placeholder="Baslik" @bind="_adTitle" />
-        <input class="em-input mkt-full" placeholder="Alt Baslik" @bind="_adSubtitle" />
-        <input class="em-input" placeholder="Link URL" @bind="_adLinkUrl" />
-        <input class="em-input" placeholder="Image URL" @bind="_adImageUrl" />
-        <input class="em-input" type="number" min="0" @bind="_adPriority" />
-        <input class="em-input" type="datetime-local" @bind="_adStartDate" />
-        <input class="em-input" type="datetime-local" @bind="_adEndDate" />
-        <label class="mkt-muted"><input type="checkbox" @bind="_adIsActive" /> Aktif</label>
-        <button type="button" class="mkt-btn mkt-btn-primary mkt-full" @onclick="SaveAdSlotAsync">@(_editingAdId is null ? "Slot Ekle" : "Slot Guncelle")</button>
-    </div>
-
-    @if (_adSlots.Any())
-    {
-        <table class="em-table">
-            <thead>
-                <tr>
-                    <th>Placement</th>
-                    <th>Baslik</th>
-                    <th>Oncelik</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var slot in _adSlots)
-                {
-                    <tr>
-                        <td>@slot.Placement</td>
-                        <td>@slot.Title</td>
-                        <td>@slot.Priority</td>
-                        <td>
-                            <button type="button" class="em-btn-outline" @onclick="() => LoadAdToForm(slot)">Duzenle</button>
-                            <button type="button" class="em-btn-outline" @onclick="() => DeleteAdSlotAsync(slot.Id)">Sil</button>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    }
-</section>
-
-<section class="mkt-section">
-    <h2>Sponsorlu Listing Slotu</h2>
-    <div class="mkt-form-grid">
-        <select class="em-select" @bind="_featuredEventId">
-            <option value="">Etkinlik Sec</option>
-            @foreach (var ev in _allEvents)
-            {
-                <option value="@ev.Id">@ev.Title</option>
-            }
-        </select>
-        <input class="em-input" placeholder="Placement (home-carousel)" @bind="_featuredPlacement" />
-        <input class="em-input" type="number" min="0" @bind="_featuredPriority" />
-        <input class="em-input" type="datetime-local" @bind="_featuredExpiresAt" />
-        <label class="mkt-muted"><input type="checkbox" @bind="_featuredIsActive" /> Aktif</label>
-        <button type="button" class="mkt-btn mkt-btn-primary mkt-full" @onclick="SaveFeaturedAsync">@(_editingFeaturedId is null ? "Sponsorlu Ekle" : "Sponsorlu Guncelle")</button>
-    </div>
-
-    @if (_featuredListings.Any())
-    {
-        <table class="em-table">
-            <thead>
-                <tr>
-                    <th>Etkinlik</th>
-                    <th>Placement</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var row in _featuredListings)
-                {
-                    <tr>
-                        <td>@row.EventTitle</td>
-                        <td>@row.Placement</td>
-                        <td>
-                            <button type="button" class="em-btn-outline" @onclick="() => LoadFeaturedToForm(row)">Duzenle</button>
-                            <button type="button" class="em-btn-outline" @onclick="() => DeleteFeaturedAsync(row.Id)">Sil</button>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    }
-</section>
-
-<section class="mkt-section">
-    <h2>Mesaj Inbox (Etkinlik Bazli)</h2>
-    @if (_inbox.Any())
-    {
-        <table class="em-table">
-            <thead>
-                <tr>
-                    <th>Etkinlik</th>
-                    <th>Gonderen</th>
-                    <th>E-posta</th>
-                    <th>Mesaj</th>
-                    <th>Tarih</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var msg in _inbox.OrderByDescending(x => x.CreatedAtUtc))
-                {
-                    <tr>
-                        <td>@msg.EventTitle</td>
-                        <td>@msg.SenderName</td>
-                        <td>@msg.SenderEmail</td>
-                        <td>@msg.MessageText</td>
-                        <td>@msg.CreatedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    }
-    else
-    {
-        <p class="mkt-muted">Henuz mesaj bulunmuyor.</p>
-    }
-</section>
-
-@code {
-    private string _selectedSlug = "about";
-    private string _pageTitle = string.Empty;
-    private string _pageBody = string.Empty;
-    private string _adPlacement = "home-hero";
-    private string _adTitle = string.Empty;
-    private string _adSubtitle = string.Empty;
-    private string? _adLinkUrl;
-    private string? _adImageUrl;
-    private bool _adIsActive = true;
-    private int _adPriority = 1;
-    private DateTime? _adStartDate;
-    private DateTime? _adEndDate;
-    private Guid? _editingAdId;
-    private string _featuredPlacement = "home-carousel";
-    private string _featuredEventId = string.Empty;
-    private int _featuredPriority = 1;
-    private DateTime? _featuredExpiresAt = DateTime.Now.AddDays(30);
-    private bool _featuredIsActive = true;
-    private Guid? _editingFeaturedId;
-    private string _info = string.Empty;
-
-    private List<AdvertisementSlotModel> _adSlots = [];
-    private List<FeaturedListingModel> _featuredListings = [];
-    private List<AdminInboxMessageModel> _inbox = [];
-    private List<EventListItemModel> _allEvents = [];
-
-    protected override async Task OnInitializedAsync()
-    {
-        await LoadPageAsync();
-        await RefreshAsync();
-    }
-
-    private async Task LoadPageAsync()
-    {
-        var page = await Api.GetAdminSitePageAsync(_selectedSlug);
-        _pageTitle = page?.Title ?? string.Empty;
-        _pageBody = page?.Body ?? string.Empty;
-    }
-
-    private async Task RefreshAsync()
-    {
-        _adSlots = await Api.GetAdminAdSlotsAsync();
-        _featuredListings = await Api.GetFeaturedListingsAdminAsync();
-        _inbox = await Api.GetAdminInboxAsync();
-        var eventsResult = await Api.GetAllEventsAdminAsync();
-        _allEvents = eventsResult;
-    }
-
-    private async Task SavePageAsync()
-    {
-        var ok = await Api.UpsertAdminSitePageAsync(_selectedSlug, _pageTitle, _pageBody);
-        _info = ok ? "Sayfa kaydedildi." : "Kayit basarisiz.";
-    }
-
-    private async Task SaveAdSlotAsync()
-    {
-        var startUtc = _adStartDate?.ToUniversalTime();
-        var endUtc = _adEndDate?.ToUniversalTime();
-
-        bool ok;
-        if (_editingAdId is null)
-        {
-            ok = await Api.CreateAdSlotAsync(_adPlacement, _adTitle, _adSubtitle, _adLinkUrl, _adImageUrl, _adIsActive, _adPriority, startUtc, endUtc);
-            _info = ok ? "Reklam slotu eklendi." : "Reklam slotu eklenemedi.";
-        }
-        else
-        {
-            ok = await Api.UpdateAdSlotAsync(_editingAdId.Value, _adPlacement, _adTitle, _adSubtitle, _adLinkUrl, _adImageUrl, _adIsActive, _adPriority, startUtc, endUtc);
-            _info = ok ? "Reklam slotu guncellendi." : "Reklam slotu guncellenemedi.";
-        }
-
-        if (ok)
-        {
-            _editingAdId = null;
-            _adTitle = string.Empty;
-            _adSubtitle = string.Empty;
-            _adLinkUrl = null;
-            _adImageUrl = null;
-            _adPriority = 1;
-            _adStartDate = null;
-            _adEndDate = null;
-            await RefreshAsync();
-        }
-    }
-
-    private void LoadAdToForm(AdvertisementSlotModel slot)
-    {
-        _editingAdId = slot.Id;
-        _adPlacement = slot.Placement;
-        _adTitle = slot.Title;
-        _adSubtitle = slot.Subtitle;
-        _adLinkUrl = slot.LinkUrl;
-        _adImageUrl = slot.ImageUrl;
-        _adIsActive = slot.IsActive;
-        _adPriority = slot.Priority;
-        _adStartDate = slot.StartDateUtc?.ToLocalTime();
-        _adEndDate = slot.EndDateUtc?.ToLocalTime();
-    }
-
-    private async Task DeleteAdSlotAsync(Guid id)
-    {
-        var ok = await Api.DeleteAdSlotAsync(id);
-        _info = ok ? "Reklam slotu silindi." : "Silme basarisiz.";
-        if (ok) await RefreshAsync();
-    }
-
-    private async Task SaveFeaturedAsync()
-    {
-        if (!Guid.TryParse(_featuredEventId, out var eventId))
-        {
-            _info = "Lutfen etkinlik secin.";
-            return;
-        }
-
-        var expiresUtc = _featuredExpiresAt?.ToUniversalTime();
-
-        bool ok;
-        if (_editingFeaturedId is null)
-        {
-            ok = await Api.CreateFeaturedListingAsync(eventId, _featuredPlacement, _featuredPriority, expiresUtc, _featuredIsActive);
-            _info = ok ? "Sponsorlu listing eklendi." : "Sponsorlu listing eklenemedi.";
-        }
-        else
-        {
-            ok = await Api.UpdateFeaturedListingAsync(_editingFeaturedId.Value, eventId, _featuredPlacement, _featuredPriority, expiresUtc, _featuredIsActive);
-            _info = ok ? "Sponsorlu listing guncellendi." : "Sponsorlu listing guncellenemedi.";
-        }
-
-        if (ok)
-        {
-            _editingFeaturedId = null;
-            await RefreshAsync();
-        }
-    }
-
-    private void LoadFeaturedToForm(FeaturedListingModel row)
-    {
-        _editingFeaturedId = row.Id;
-        _featuredEventId = row.EventId.ToString();
-        _featuredPlacement = row.Placement;
-        _featuredPriority = row.Priority;
-        _featuredExpiresAt = row.ExpiresAtUtc?.ToLocalTime();
-        _featuredIsActive = row.IsActive;
-    }
-
-    private async Task DeleteFeaturedAsync(Guid id)
-    {
-        var ok = await Api.DeleteFeaturedListingAsync(id);
-        _info = ok ? "Sponsorlu listing silindi." : "Silme basarisiz.";
-        if (ok) await RefreshAsync();
-    }
-}

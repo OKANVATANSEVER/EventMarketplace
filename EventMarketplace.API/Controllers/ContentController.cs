@@ -89,6 +89,32 @@ public class ContentController(ApplicationDbContext dbContext) : CustomBaseContr
         return ActionResultInstance(CustomResponse<object>.Success(items, 200));
     }
 
+    [HttpGet("popular-venues")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetPopularVenues(CancellationToken cancellationToken)
+    {
+        var items = await dbContext.PopularVenues
+            .AsNoTracking()
+            .Where(x => x.IsActive)
+            .OrderBy(x => x.SortOrder)
+            .ThenBy(x => x.Name)
+            .Select(x => new
+            {
+                x.Id,
+                x.Name,
+                x.City,
+                x.Tag,
+                x.ImageUrl,
+                x.SortOrder,
+                x.IsActive,
+                x.CreatedAtUtc,
+                x.UpdatedAtUtc
+            })
+            .ToListAsync(cancellationToken);
+
+        return ActionResultInstance(CustomResponse<object>.Success(items, 200));
+    }
+
     [HttpGet("events/{eventId:guid}/interactions")]
     [AllowAnonymous]
     public async Task<IActionResult> GetEventInteractions(Guid eventId, CancellationToken cancellationToken)

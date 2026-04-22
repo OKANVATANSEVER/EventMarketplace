@@ -48,6 +48,10 @@ a:hover { text-decoration: underline; }
 .em-sidebar-nav { display: flex; flex-direction: column; padding: 12px 0; flex: 1; }
 .em-sidebar-nav a, .em-sidebar-nav button { display: flex; align-items: center; gap: 10px; padding: 10px 20px; color: #cbd5e1; font-size: .95rem; text-decoration: none; transition: background .15s, color .15s; }
 .em-sidebar-nav a:hover, .em-sidebar-nav a.active { background: #334155; color: #fff; }
+.em-sidebar-group { display: flex; flex-direction: column; }
+.em-sidebar-subnav { display: flex; flex-direction: column; padding: 4px 0 10px; }
+.em-sidebar-subnav a { padding: 8px 20px 8px 52px; font-size: .85rem; color: #94a3b8; }
+.em-sidebar-subnav a:hover, .em-sidebar-subnav a.active { background: #1e293b; color: #fff; }
 .em-sidebar-nav hr { border-color: #334155; margin: 8px 20px; }
 .em-sidebar-logout { background: none; border: none; cursor: pointer; color: #f87171 !important; width: 100%; text-align: left; }
 .em-admin-content { margin-left: var(--sidebar-w); flex: 1; min-height: 100vh; background: var(--bg); }
@@ -186,6 +190,23 @@ a:hover { text-decoration: underline; }
 .em-search-bar { flex: 0 0 280px; }
 .em-filter-row { display: flex; gap: 8px; }
 .em-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.em-content-subnav { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+.em-content-subnav a { border: 1px solid var(--border); background: #fff; color: var(--text); border-radius: 999px; padding: 8px 14px; font-size: .9rem; font-weight: 600; text-decoration: none; }
+.em-content-subnav a:hover, .em-content-subnav a.active { border-color: var(--primary); color: var(--primary); background: #eef2ff; }
+.em-content-menu-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+.em-content-menu-card { display: block; padding: 18px; border-radius: 14px; background: #fff; border: 1px solid var(--border); box-shadow: var(--shadow); color: var(--text); text-decoration: none; }
+.em-content-menu-card strong { display: block; margin-bottom: 6px; font-size: 1rem; }
+.em-content-menu-card span { color: var(--text-muted); font-size: .9rem; }
+.em-content-menu-card:hover { border-color: var(--primary); transform: translateY(-1px); }
+.em-filter-pills { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.em-filter-pills button { border: 1px solid var(--border); background: #fff; color: var(--text); border-radius: 999px; padding: 8px 14px; cursor: pointer; }
+.em-filter-pills button.active { border-color: var(--primary); background: #eef2ff; color: var(--primary); }
+.em-stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 18px; }
+.em-stat-card { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 14px; box-shadow: var(--shadow); }
+.em-stat-card strong { display: block; font-size: 1.3rem; }
+.em-status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 999px; margin-right: 6px; }
+.em-status-dot.active { background: var(--success); }
+.em-status-dot.passive { background: var(--danger); }
 
 /* ── Modal ──────────────────────────────────────────────── */
 .em-modal-overlay { position: fixed !important; inset: 0; background: rgba(15, 23, 42, .55); backdrop-filter: blur(3px); display: flex !important; align-items: center; justify-content: center; padding: 24px; z-index: 9999; }
@@ -488,6 +509,15 @@ h1, h2, h3, h4, .em-logo {
     margin-bottom: 10px;
 }
 
+.mkt-venue-thumb-image {
+    width: 100%;
+    height: 86px;
+    object-fit: cover;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    border: 1px solid var(--mkt-line);
+}
+
 .mkt-banner-ad {
     border: 1px dashed #c2410c;
     background: repeating-linear-gradient(
@@ -500,8 +530,29 @@ h1, h2, h3, h4, .em-logo {
     border-radius: 12px;
     display: grid;
     place-items: center;
+    gap: 8px;
+    padding: 12px;
     text-align: center;
     color: #7c2d12;
+}
+
+.mkt-banner-ad-link {
+    text-decoration: none;
+    transition: transform .15s, box-shadow .2s;
+}
+
+.mkt-banner-ad-link:hover {
+    text-decoration: none;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow);
+}
+
+.mkt-banner-ad-image {
+    width: 100%;
+    max-height: 210px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid #fdba74;
 }
 
 .mkt-listing-layout {
@@ -655,6 +706,16 @@ h1, h2, h3, h4, .em-logo {
     border-radius: 12px;
     background: #fff;
     padding: 14px;
+}
+
+.mkt-placement-guide {
+    border: 1px solid var(--mkt-line);
+    border-radius: 12px;
+    background: #fff;
+    padding: 12px;
+    display: grid;
+    gap: 4px;
+    color: #334155;
 }
 
 .mkt-form-grid {

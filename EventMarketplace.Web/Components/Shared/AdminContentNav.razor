@@ -1,0 +1,23 @@
+@inject NavigationManager NavigationManager
+
+<nav class="em-content-subnav">
+    <a href="/admin/content" class="@NavClass("/admin/content")">Ana Menü</a>
+    <a href="/admin/content/pages" class="@NavClass("/admin/content/pages")">Sayfa İçerikleri</a>
+    <a href="/admin/content/ad-slots" class="@NavClass("/admin/content/ad-slots")">Reklam Slotları</a>
+    <a href="/admin/content/featured-listings" class="@NavClass("/admin/content/featured-listings")">Sponsorlu Listing Slotu</a>
+    <a href="/admin/content/inbox" class="@NavClass("/admin/content/inbox")">Mesaj Inbox</a>
+    <a href="/admin/content/venues" class="@NavClass("/admin/content/venues")">Popüler Mekanlar</a>
+</nav>
+
+@code {
+    private string NavClass(string href)
+    {
+        var current = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+        var target = href.TrimStart('/');
+
+        if (href == "/admin/content")
+            return string.Equals(current, target, StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty;
+
+        return current.StartsWith(target, StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty;
+    }
+}

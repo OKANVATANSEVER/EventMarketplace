@@ -4,6 +4,7 @@ using EventMarketplace.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace EventMarketplace.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260422123218_AddPopularVenuesAndSlotTracking")]
+    partial class AddPopularVenuesAndSlotTracking
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -414,45 +417,6 @@ namespace EventMarketplace.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("SitePageContents");
-                });
-
-            modelBuilder.Entity("EventMarketplace.Domain.Entities.SlotStatusAudit", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<DateTime>("ChangedAtUtc")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("ChangedByEmail")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("ChangedByRole")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("ChangedByUserId")
-                        .HasColumnType("longtext");
-
-                    b.Property<bool>("NewIsActive")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<bool>("PreviousIsActive")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<string>("RequestIp")
-                        .HasColumnType("longtext");
-
-                    b.Property<Guid>("SlotId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<string>("SlotType")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("SlotStatusAudits");
                 });
 
             modelBuilder.Entity("EventMarketplace.Domain.Entities.UserCategoryPreference", b =>

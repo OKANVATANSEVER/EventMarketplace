@@ -13,6 +13,12 @@ namespace EventMarketplace.API.Controllers;
 [Authorize(Roles = "Organizer,Admin")]
 public class OrganizerController(ApplicationDbContext dbContext) : CustomBaseController
 {
+    private static readonly HashSet<string> AllowedAdSlotPlacements = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "home-hero",
+        "detail-sidebar"
+    };
+
     [HttpGet("events")]
     public async Task<IActionResult> GetMyEvents(CancellationToken cancellationToken)
     {
@@ -108,10 +114,14 @@ public class OrganizerController(ApplicationDbContext dbContext) : CustomBaseCon
         if (string.IsNullOrWhiteSpace(userId))
             return ActionResultInstance(CustomResponse<NoContent>.Fail("Organizer identity is missing.", 401, true));
 
+        var placement = request.Placement.Trim();
+        if (!AllowedAdSlotPlacements.Contains(placement))
+            return ActionResultInstance(CustomResponse<NoContent>.Fail($"Invalid placement. Allowed values: {string.Join(", ", AllowedAdSlotPlacements)}", 400, true));
+
         var slot = new AdvertisementSlot
         {
             CreatedByUserId = userId,
-            Placement = request.Placement,
+            Placement = placement,
             Title = request.Title,
             Subtitle = request.Subtitle,
             LinkUrl = request.LinkUrl,
@@ -134,6 +144,10 @@ public class OrganizerController(ApplicationDbContext dbContext) : CustomBaseCon
         if (string.IsNullOrWhiteSpace(userId))
             return ActionResultInstance(CustomResponse<NoContent>.Fail("Organizer identity is missing.", 401, true));
 
+        var placement = request.Placement.Trim();
+        if (!AllowedAdSlotPlacements.Contains(placement))
+            return ActionResultInstance(CustomResponse<NoContent>.Fail($"Invalid placement. Allowed values: {string.Join(", ", AllowedAdSlotPlacements)}", 400, true));
+
         var slot = await dbContext.AdvertisementSlots.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
         if (slot is null)
             return ActionResultInstance(CustomResponse<NoContent>.Fail("Slot not found.", 404, true));
@@ -141,7 +155,7 @@ public class OrganizerController(ApplicationDbContext dbContext) : CustomBaseCon
         if (slot.CreatedByUserId != userId && !User.IsInRole("Admin"))
             return ActionResultInstance(CustomResponse<NoContent>.Fail("Forbidden.", 403, true));
 
-        slot.Placement = request.Placement;
+        slot.Placement = placement;
         slot.Title = request.Title;
         slot.Subtitle = request.Subtitle;
         slot.LinkUrl = request.LinkUrl;

@@ -1,5 +1,12 @@
 <article class="mkt-venue-card">
-    <div class="mkt-venue-thumb"></div>
+    @if (!string.IsNullOrWhiteSpace(ImageUrl))
+    {
+        <img class="mkt-venue-thumb-image" src="@ImageUrl" alt="@Name" />
+    }
+    else
+    {
+        <div class="mkt-venue-thumb"></div>
+    }
     <h4>@Name</h4>
     <p>@City</p>
     <span>@Tag</span>
@@ -9,4 +16,5 @@
     [Parameter] public string Name { get; set; } = string.Empty;
     [Parameter] public string City { get; set; } = string.Empty;
     [Parameter] public string Tag { get; set; } = string.Empty;
+    [Parameter] public string? ImageUrl { get; set; }
 }

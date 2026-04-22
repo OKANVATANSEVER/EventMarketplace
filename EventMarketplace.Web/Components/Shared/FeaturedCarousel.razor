@@ -1,5 +1,12 @@
 @using EventMarketplace.Web.Models
 
+
+@if (Events.Any())
+{
+    <div class="mkt-section-header">
+        <h2>Öne Çıkan Etkinlikler</h2>
+        <span>Sponsorlu Carousel</span>
+    </div>
 <div class="mkt-carousel">
     @if (Events.Any())
     {
@@ -21,6 +28,7 @@
         <p class="mkt-empty">Henüz sponsorlu etkinlik bulunmuyor.</p>
     }
 </div>
+}
 
 @code {
     [Parameter] public IReadOnlyList<PublicFeaturedEventModel> Events { get; set; } = [];

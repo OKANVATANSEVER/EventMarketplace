@@ -1,0 +1,52 @@
+@page "/admin/content/inbox"
+@layout AdminLayout
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+@inject ApiClient Api
+
+<PageTitle>Mesaj Inbox</PageTitle>
+
+<h1 class="em-page-title">Mesaj Inbox</h1>
+<p class="em-page-subtitle">Etkinlik bazli gelen tum mesajlari merkezi olarak izleyin.</p>
+
+<AdminContentNav />
+
+@if (_inbox.Count > 0)
+{
+    <table class="em-table">
+        <thead>
+            <tr>
+                <th>Etkinlik</th>
+                <th>Gonderen</th>
+                <th>E-posta</th>
+                <th>Mesaj</th>
+                <th>Tarih</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var msg in _inbox.OrderByDescending(x => x.CreatedAtUtc))
+            {
+                <tr>
+                    <td>@msg.EventTitle</td>
+                    <td>@msg.SenderName</td>
+                    <td>@msg.SenderEmail</td>
+                    <td>@msg.MessageText</td>
+                    <td>@msg.CreatedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <p class="mkt-muted">Henuz mesaj bulunmuyor.</p>
+}
+
+@code {
+    private List<AdminInboxMessageModel> _inbox = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _inbox = await Api.GetAdminInboxAsync();
+    }
+}

@@ -1,0 +1,55 @@
+@page "/admin/content/pages"
+@layout AdminLayout
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+@inject ApiClient Api
+
+<PageTitle>Sayfa Icerikleri</PageTitle>
+
+<h1 class="em-page-title">Sayfa Icerikleri</h1>
+<p class="em-page-subtitle">Statik site sayfalarini yonetin.</p>
+
+<AdminContentNav />
+
+@if (!string.IsNullOrWhiteSpace(_info))
+{
+    <div class="em-alert em-alert-success">@_info</div>
+}
+
+<section class="mkt-section">
+    <div class="mkt-form-grid">
+        <select class="em-select" @bind="_selectedSlug" @bind:after="LoadPageAsync">
+            <option value="about">about</option>
+            <option value="contact">contact</option>
+            <option value="privacy">privacy</option>
+        </select>
+        <input class="em-input" placeholder="Baslik" @bind="_pageTitle" />
+        <textarea class="em-input mkt-full" placeholder="Icerik" @bind="_pageBody"></textarea>
+        <button type="button" class="mkt-btn mkt-btn-primary mkt-full" @onclick="SavePageAsync">Kaydet</button>
+    </div>
+</section>
+
+@code {
+    private string _selectedSlug = "about";
+    private string _pageTitle = string.Empty;
+    private string _pageBody = string.Empty;
+    private string _info = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPageAsync();
+    }
+
+    private async Task LoadPageAsync()
+    {
+        var page = await Api.GetAdminSitePageAsync(_selectedSlug);
+        _pageTitle = page?.Title ?? string.Empty;
+        _pageBody = page?.Body ?? string.Empty;
+    }
+
+    private async Task SavePageAsync()
+    {
+        var ok = await Api.UpsertAdminSitePageAsync(_selectedSlug, _pageTitle, _pageBody);
+        _info = ok ? "Sayfa kaydedildi." : "Kayit basarisiz.";
+    }
+}

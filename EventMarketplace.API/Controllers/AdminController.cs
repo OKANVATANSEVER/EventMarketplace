@@ -18,6 +18,17 @@ namespace EventMarketplace.API.Controllers;
 [Authorize(Roles = "Admin")]
 public class AdminController(IMediator mediator, ApplicationDbContext dbContext) : CustomBaseController
 {
+    private static readonly HashSet<string> AllowedAdSlotPlacements = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "home-hero",
+        "detail-sidebar"
+    };
+
+    private static readonly HashSet<string> AllowedFeaturedPlacements = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "home-carousel"
+    };
+
     /// <summary>Returns admin dashboard statistics for the current month.</summary>
     [HttpGet("dashboard")]
     public async Task<IActionResult> GetDashboardStats(CancellationToken cancellationToken)
@@ -170,6 +181,10 @@ public class AdminController(IMediator mediator, ApplicationDbContext dbContext)
                 x.ImageUrl,
                 x.IsActive,
                 x.Priority,
+                x.CreatedAtUtc,
+                x.ActiveSinceUtc,
+                x.LastStatusChangedAtUtc,
+                TotalPublishedDurationSeconds = GetPublishedDurationSeconds(x.IsActive, x.ActiveSinceUtc, x.TotalActiveDurationSeconds),
                 x.StartDateUtc,
                 x.EndDateUtc
             })
@@ -181,14 +196,22 @@ public class AdminController(IMediator mediator, ApplicationDbContext dbContext)
     [HttpPost("ad-slots")]
     public async Task<IActionResult> CreateAdSlot([FromBody] UpsertAdSlotRequest request, CancellationToken cancellationToken)
     {
+        var placement = request.Placement.Trim();
+        if (!AllowedAdSlotPlacements.Contains(placement))
+            return ActionResultInstance(CustomResponse<NoContent>.Fail($"Invalid placement. Allowed values: {string.Join(", ", AllowedAdSlotPlacements)}", 400, true));
+
+        var now = DateTime.UtcNow;
         var slot = new AdvertisementSlot
         {
-            Placement = request.Placement,
+            Placement = placement,
             Title = request.Title,
             Subtitle = request.Subtitle,
             LinkUrl = request.LinkUrl,
             ImageUrl = request.ImageUrl,
             IsActive = request.IsActive,
+            CreatedAtUtc = now,
+            ActiveSinceUtc = request.IsActive ? now : null,
+            LastStatusChangedAtUtc = now,
             Priority = request.Priority,
             StartDateUtc = request.StartDateUtc,
             EndDateUtc = request.EndDateUtc
@@ -205,19 +228,23 @@ public class AdminController(IMediator mediator, ApplicationDbContext dbContext)
         [FromBody] UpsertAdSlotRequest request,
         CancellationToken cancellationToken)
     {
+        var placement = request.Placement.Trim();
+        if (!AllowedAdSlotPlacements.Contains(placement))
+            return ActionResultInstance(CustomResponse<NoContent>.Fail($"Invalid placement. Allowed values: {string.Join(", ", AllowedAdSlotPlacements)}", 400, true));
+
         var slot = await dbContext.AdvertisementSlots.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
         if (slot is null)
             return ActionResultInstance(CustomResponse<NoContent>.Fail("Slot not found.", 404, true));
 
-        slot.Placement = request.Placement;
+        slot.Placement = placement;
         slot.Title = request.Title;
         slot.Subtitle = request.Subtitle;
         slot.LinkUrl = request.LinkUrl;
         slot.ImageUrl = request.ImageUrl;
-        slot.IsActive = request.IsActive;
         slot.Priority = request.Priority;
         slot.StartDateUtc = request.StartDateUtc;
         slot.EndDateUtc = request.EndDateUtc;
+        UpdateActivationTracking(slot, request.IsActive);
 
         await dbContext.SaveChangesAsync(cancellationToken);
         return ActionResultInstance(CustomResponse<NoContent>.Success(200));
@@ -230,9 +257,40 @@ public class AdminController(IMediator mediator, ApplicationDbContext dbContext)
         if (slot is null)
             return ActionResultInstance(CustomResponse<NoContent>.Fail("Slot not found.", 404, true));
 
-        dbContext.AdvertisementSlots.Remove(slot);
+        // Soft delete: keep the history, only deactivate the slot.
+        UpdateActivationTracking(slot, false);
+        slot.EndDateUtc ??= DateTime.UtcNow;
         await dbContext.SaveChangesAsync(cancellationToken);
         return ActionResultInstance(CustomResponse<NoContent>.Success(200));
+    }
+
+    [HttpGet("ad-slots/{id:guid}/status-history")]
+    public async Task<IActionResult> GetAdSlotStatusHistory(Guid id, CancellationToken cancellationToken)
+    {
+        var history = await dbContext.SlotStatusAudits
+            .AsNoTracking()
+            .Where(x => x.SlotType == "AdvertisementSlot" && x.SlotId == id)
+            .OrderByDescending(x => x.ChangedAtUtc)
+            .Select(x => new
+            {
+                x.Id,
+                x.SlotType,
+                x.SlotId,
+                x.PreviousIsActive,
+                x.NewIsActive,
+                x.ChangedAtUtc,
+                x.ChangedByUserId,
+                x.ChangedByEmail,
+                x.ChangedByRole,
+                x.RequestIp,
+                ChangedBy = !string.IsNullOrWhiteSpace(x.ChangedByEmail)
+                    ? x.ChangedByEmail
+                    : (!string.IsNullOrWhiteSpace(x.ChangedByUserId) ? x.ChangedByUserId : "System"),
+                ActionLabel = x.NewIsActive ? "Aktife Alindi" : "Pasife Alindi"
+            })
+            .ToListAsync(cancellationToken);
+
+        return ActionResultInstance(CustomResponse<object>.Success(history, 200));
     }
 
     [HttpGet("featured-listings")]
@@ -251,7 +309,11 @@ public class AdminController(IMediator mediator, ApplicationDbContext dbContext)
                 x.Placement,
                 x.Priority,
                 x.ExpiresAtUtc,
-                x.IsActive
+                x.IsActive,
+                x.CreatedAtUtc,
+                x.ActiveSinceUtc,
+                x.LastStatusChangedAtUtc,
+                TotalPublishedDurationSeconds = GetPublishedDurationSeconds(x.IsActive, x.ActiveSinceUtc, x.TotalActiveDurationSeconds)
             })
             .ToListAsync(cancellationToken);
 
@@ -263,17 +325,25 @@ public class AdminController(IMediator mediator, ApplicationDbContext dbContext)
         [FromBody] CreateFeaturedListingRequest request,
         CancellationToken cancellationToken)
     {
+        var placement = request.Placement.Trim();
+        if (!AllowedFeaturedPlacements.Contains(placement))
+            return ActionResultInstance(CustomResponse<NoContent>.Fail($"Invalid placement. Allowed values: {string.Join(", ", AllowedFeaturedPlacements)}", 400, true));
+
         var eventExists = await dbContext.Events.AnyAsync(x => x.Id == request.EventId, cancellationToken);
         if (!eventExists)
             return ActionResultInstance(CustomResponse<NoContent>.Fail("Event not found.", 404, true));
 
+        var now = DateTime.UtcNow;
         var featured = new FeaturedListing
         {
             EventId = request.EventId,
-            Placement = request.Placement,
+            Placement = placement,
             Priority = request.Priority,
             ExpiresAtUtc = request.ExpiresAtUtc,
-            IsActive = request.IsActive
+            IsActive = request.IsActive,
+            CreatedAtUtc = now,
+            ActiveSinceUtc = request.IsActive ? now : null,
+            LastStatusChangedAtUtc = now
         };
 
         await dbContext.FeaturedListings.AddAsync(featured, cancellationToken);
@@ -288,7 +358,134 @@ public class AdminController(IMediator mediator, ApplicationDbContext dbContext)
         if (row is null)
             return ActionResultInstance(CustomResponse<NoContent>.Fail("Featured listing not found.", 404, true));
 
-        dbContext.FeaturedListings.Remove(row);
+        // Soft delete: keep the history, only deactivate the listing.
+        UpdateActivationTracking(row, false);
+        row.ExpiresAtUtc ??= DateTime.UtcNow;
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ActionResultInstance(CustomResponse<NoContent>.Success(200));
+    }
+
+    [HttpGet("featured-listings/{id:guid}/status-history")]
+    public async Task<IActionResult> GetFeaturedListingStatusHistory(Guid id, CancellationToken cancellationToken)
+    {
+        var history = await dbContext.SlotStatusAudits
+            .AsNoTracking()
+            .Where(x => x.SlotType == "FeaturedListing" && x.SlotId == id)
+            .OrderByDescending(x => x.ChangedAtUtc)
+            .Select(x => new
+            {
+                x.Id,
+                x.SlotType,
+                x.SlotId,
+                x.PreviousIsActive,
+                x.NewIsActive,
+                x.ChangedAtUtc,
+                x.ChangedByUserId,
+                x.ChangedByEmail,
+                x.ChangedByRole,
+                x.RequestIp,
+                ChangedBy = !string.IsNullOrWhiteSpace(x.ChangedByEmail)
+                    ? x.ChangedByEmail
+                    : (!string.IsNullOrWhiteSpace(x.ChangedByUserId) ? x.ChangedByUserId : "System"),
+                ActionLabel = x.NewIsActive ? "Aktife Alindi" : "Pasife Alindi"
+            })
+            .ToListAsync(cancellationToken);
+
+        return ActionResultInstance(CustomResponse<object>.Success(history, 200));
+    }
+
+    [HttpPut("featured-listings/{id:guid}")]
+    public async Task<IActionResult> UpdateFeaturedListing(
+        Guid id,
+        [FromBody] CreateFeaturedListingRequest request,
+        CancellationToken cancellationToken)
+    {
+        var placement = request.Placement.Trim();
+        if (!AllowedFeaturedPlacements.Contains(placement))
+            return ActionResultInstance(CustomResponse<NoContent>.Fail($"Invalid placement. Allowed values: {string.Join(", ", AllowedFeaturedPlacements)}", 400, true));
+
+        var row = await dbContext.FeaturedListings.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (row is null)
+            return ActionResultInstance(CustomResponse<NoContent>.Fail("Featured listing not found.", 404, true));
+
+        var eventExists = await dbContext.Events.AnyAsync(x => x.Id == request.EventId, cancellationToken);
+        if (!eventExists)
+            return ActionResultInstance(CustomResponse<NoContent>.Fail("Event not found.", 404, true));
+
+        row.EventId = request.EventId;
+        row.Placement = placement;
+        row.Priority = request.Priority;
+        row.ExpiresAtUtc = request.ExpiresAtUtc;
+        UpdateActivationTracking(row, request.IsActive);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ActionResultInstance(CustomResponse<NoContent>.Success(200));
+    }
+
+    [HttpGet("popular-venues")]
+    public async Task<IActionResult> GetPopularVenues(CancellationToken cancellationToken)
+    {
+        var venues = await dbContext.PopularVenues
+            .AsNoTracking()
+            .OrderBy(x => x.SortOrder)
+            .ThenBy(x => x.Name)
+            .Select(x => new
+            {
+                x.Id,
+                x.Name,
+                x.City,
+                x.Tag,
+                x.ImageUrl,
+                x.SortOrder,
+                x.IsActive,
+                x.CreatedAtUtc,
+                x.UpdatedAtUtc
+            })
+            .ToListAsync(cancellationToken);
+
+        return ActionResultInstance(CustomResponse<object>.Success(venues, 200));
+    }
+
+    [HttpPost("popular-venues")]
+    public async Task<IActionResult> CreatePopularVenue(
+        [FromBody] UpsertPopularVenueRequest request,
+        CancellationToken cancellationToken)
+    {
+        var venue = new PopularVenue
+        {
+            Name = request.Name,
+            City = request.City,
+            Tag = request.Tag,
+            ImageUrl = request.ImageUrl,
+            SortOrder = request.SortOrder,
+            IsActive = request.IsActive,
+            CreatedAtUtc = DateTime.UtcNow,
+            UpdatedAtUtc = DateTime.UtcNow
+        };
+
+        await dbContext.PopularVenues.AddAsync(venue, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ActionResultInstance(CustomResponse<object>.Success(new { venue.Id }, 201));
+    }
+
+    [HttpPut("popular-venues/{id:guid}")]
+    public async Task<IActionResult> UpdatePopularVenue(
+        Guid id,
+        [FromBody] UpsertPopularVenueRequest request,
+        CancellationToken cancellationToken)
+    {
+        var venue = await dbContext.PopularVenues.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (venue is null)
+            return ActionResultInstance(CustomResponse<NoContent>.Fail("Venue not found.", 404, true));
+
+        venue.Name = request.Name;
+        venue.City = request.City;
+        venue.Tag = request.Tag;
+        venue.ImageUrl = request.ImageUrl;
+        venue.SortOrder = request.SortOrder;
+        venue.IsActive = request.IsActive;
+        venue.UpdatedAtUtc = DateTime.UtcNow;
+
         await dbContext.SaveChangesAsync(cancellationToken);
         return ActionResultInstance(CustomResponse<NoContent>.Success(200));
     }
@@ -337,6 +534,95 @@ public class AdminController(IMediator mediator, ApplicationDbContext dbContext)
 
         return ActionResultInstance(CustomResponse<object>.Success(items, 200));
     }
+
+    private static long GetPublishedDurationSeconds(bool isActive, DateTime? activeSinceUtc, long totalActiveDurationSeconds)
+    {
+        if (!isActive || activeSinceUtc is null)
+            return totalActiveDurationSeconds;
+
+        return totalActiveDurationSeconds + (long)Math.Max(0, (DateTime.UtcNow - activeSinceUtc.Value).TotalSeconds);
+    }
+
+    private void UpdateActivationTracking(AdvertisementSlot slot, bool newIsActive)
+    {
+        if (slot.IsActive == newIsActive)
+            return;
+
+        var previousIsActive = slot.IsActive;
+        var now = DateTime.UtcNow;
+        slot.LastStatusChangedAtUtc = now;
+
+        if (newIsActive)
+        {
+            slot.IsActive = true;
+            slot.ActiveSinceUtc = now;
+            AddSlotStatusAudit("AdvertisementSlot", slot.Id, previousIsActive, true, now);
+            return;
+        }
+
+        if (slot.ActiveSinceUtc is not null)
+            slot.TotalActiveDurationSeconds += (long)Math.Max(0, (now - slot.ActiveSinceUtc.Value).TotalSeconds);
+
+        slot.IsActive = false;
+        slot.ActiveSinceUtc = null;
+        AddSlotStatusAudit("AdvertisementSlot", slot.Id, previousIsActive, false, now);
+    }
+
+    private void UpdateActivationTracking(FeaturedListing row, bool newIsActive)
+    {
+        if (row.IsActive == newIsActive)
+            return;
+
+        var previousIsActive = row.IsActive;
+        var now = DateTime.UtcNow;
+        row.LastStatusChangedAtUtc = now;
+
+        if (newIsActive)
+        {
+            row.IsActive = true;
+            row.ActiveSinceUtc = now;
+            AddSlotStatusAudit("FeaturedListing", row.Id, previousIsActive, true, now);
+            return;
+        }
+
+        if (row.ActiveSinceUtc is not null)
+            row.TotalActiveDurationSeconds += (long)Math.Max(0, (now - row.ActiveSinceUtc.Value).TotalSeconds);
+
+        row.IsActive = false;
+        row.ActiveSinceUtc = null;
+        AddSlotStatusAudit("FeaturedListing", row.Id, previousIsActive, false, now);
+    }
+
+    private void AddSlotStatusAudit(
+        string slotType,
+        Guid slotId,
+        bool previousIsActive,
+        bool newIsActive,
+        DateTime changedAtUtc)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+        var email = User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue("email");
+        var role = string.Join(", ", User.FindAll(ClaimTypes.Role).Select(x => x.Value).Distinct());
+        if (string.IsNullOrWhiteSpace(role))
+        {
+            role = string.Join(", ", User.FindAll("role").Select(x => x.Value).Distinct());
+        }
+
+        var requestIp = HttpContext.Connection.RemoteIpAddress?.ToString();
+
+        dbContext.SlotStatusAudits.Add(new SlotStatusAudit
+        {
+            SlotType = slotType,
+            SlotId = slotId,
+            PreviousIsActive = previousIsActive,
+            NewIsActive = newIsActive,
+            ChangedAtUtc = changedAtUtc,
+            ChangedByUserId = userId,
+            ChangedByEmail = email,
+            ChangedByRole = string.IsNullOrWhiteSpace(role) ? null : role,
+            RequestIp = requestIp
+        });
+    }
 }
 
 public record NotifyMembersRequest(
@@ -370,5 +656,12 @@ public record CreateFeaturedListingRequest(
     string Placement,
     int Priority,
     DateTime? ExpiresAtUtc,
+    bool IsActive);
+public record UpsertPopularVenueRequest(
+    string Name,
+    string City,
+    string Tag,
+    string? ImageUrl,
+    int SortOrder,
     bool IsActive);
 public record CreateGalleryItemRequest(string ImageUrl, string? Caption, int SortOrder);

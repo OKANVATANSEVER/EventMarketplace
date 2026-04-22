@@ -21,6 +21,8 @@ public class ApplicationDbContext : IdentityDbContext<UserApp, IdentityRole, str
     public DbSet<SitePageContent> SitePageContents => Set<SitePageContent>();
     public DbSet<AdvertisementSlot> AdvertisementSlots => Set<AdvertisementSlot>();
     public DbSet<FeaturedListing> FeaturedListings => Set<FeaturedListing>();
+    public DbSet<PopularVenue> PopularVenues => Set<PopularVenue>();
+    public DbSet<SlotStatusAudit> SlotStatusAudits => Set<SlotStatusAudit>();
     public DbSet<EventComment> EventComments => Set<EventComment>();
     public DbSet<EventGalleryItem> EventGalleryItems => Set<EventGalleryItem>();
     public DbSet<EventMessage> EventMessages => Set<EventMessage>();

@@ -241,6 +241,16 @@ public sealed class ApiClient(HttpClient http, TokenStore tokenStore)
         return envelope?.Data ?? [];
     }
 
+    public async Task<List<PopularVenueModel>> GetPublicPopularVenuesAsync(CancellationToken ct = default)
+    {
+        var response = await http.GetAsync("api/content/popular-venues", ct);
+        if (!response.IsSuccessStatusCode) return [];
+
+        var envelope = await response.Content
+            .ReadFromJsonAsync<ApiEnvelope<List<PopularVenueModel>>>(Json, ct);
+        return envelope?.Data ?? [];
+    }
+
     public async Task<EventInteractionsModel?> GetEventInteractionsAsync(Guid eventId, CancellationToken ct = default)
     {
         var response = await http.GetAsync($"api/content/events/{eventId}/interactions", ct);
@@ -346,6 +356,17 @@ public sealed class ApiClient(HttpClient http, TokenStore tokenStore)
         return response.IsSuccessStatusCode;
     }
 
+    public async Task<List<SlotStatusAuditModel>> GetAdSlotStatusHistoryAsync(Guid id, CancellationToken ct = default)
+    {
+        AttachAuth();
+        var response = await http.GetAsync($"api/admin/ad-slots/{id}/status-history", ct);
+        if (!response.IsSuccessStatusCode) return [];
+
+        var envelope = await response.Content
+            .ReadFromJsonAsync<ApiEnvelope<List<SlotStatusAuditModel>>>(Json, ct);
+        return envelope?.Data ?? [];
+    }
+
     public async Task<List<FeaturedListingModel>> GetFeaturedListingsAdminAsync(CancellationToken ct = default)
     {
         AttachAuth();
@@ -390,6 +411,59 @@ public sealed class ApiClient(HttpClient http, TokenStore tokenStore)
         AttachAuth();
         var body = new { eventId, placement, priority, expiresAtUtc, isActive };
         var response = await http.PutAsJsonAsync($"api/admin/featured-listings/{id}", body, Json, ct);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<List<SlotStatusAuditModel>> GetFeaturedListingStatusHistoryAsync(Guid id, CancellationToken ct = default)
+    {
+        AttachAuth();
+        var response = await http.GetAsync($"api/admin/featured-listings/{id}/status-history", ct);
+        if (!response.IsSuccessStatusCode) return [];
+
+        var envelope = await response.Content
+            .ReadFromJsonAsync<ApiEnvelope<List<SlotStatusAuditModel>>>(Json, ct);
+        return envelope?.Data ?? [];
+    }
+
+    public async Task<List<PopularVenueModel>> GetAdminPopularVenuesAsync(CancellationToken ct = default)
+    {
+        AttachAuth();
+        var response = await http.GetAsync("api/admin/popular-venues", ct);
+        if (!response.IsSuccessStatusCode) return [];
+
+        var envelope = await response.Content
+            .ReadFromJsonAsync<ApiEnvelope<List<PopularVenueModel>>>(Json, ct);
+        return envelope?.Data ?? [];
+    }
+
+    public async Task<bool> CreatePopularVenueAsync(
+        string name,
+        string city,
+        string tag,
+        string? imageUrl,
+        int sortOrder,
+        bool isActive,
+        CancellationToken ct = default)
+    {
+        AttachAuth();
+        var body = new { name, city, tag, imageUrl, sortOrder, isActive };
+        var response = await http.PostAsJsonAsync("api/admin/popular-venues", body, Json, ct);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> UpdatePopularVenueAsync(
+        Guid id,
+        string name,
+        string city,
+        string tag,
+        string? imageUrl,
+        int sortOrder,
+        bool isActive,
+        CancellationToken ct = default)
+    {
+        AttachAuth();
+        var body = new { name, city, tag, imageUrl, sortOrder, isActive };
+        var response = await http.PutAsJsonAsync($"api/admin/popular-venues/{id}", body, Json, ct);
         return response.IsSuccessStatusCode;
     }
 

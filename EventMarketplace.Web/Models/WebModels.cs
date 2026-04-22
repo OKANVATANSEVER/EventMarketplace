@@ -83,6 +83,10 @@ public sealed record AdvertisementSlotModel(
     string? ImageUrl,
     bool IsActive,
     int Priority,
+    DateTime CreatedAtUtc,
+    DateTime? ActiveSinceUtc,
+    DateTime? LastStatusChangedAtUtc,
+    long TotalPublishedDurationSeconds,
     DateTime? StartDateUtc,
     DateTime? EndDateUtc);
 
@@ -93,7 +97,22 @@ public sealed record FeaturedListingModel(
     string Placement,
     int Priority,
     DateTime? ExpiresAtUtc,
-    bool IsActive);
+    bool IsActive,
+    DateTime CreatedAtUtc,
+    DateTime? ActiveSinceUtc,
+    DateTime? LastStatusChangedAtUtc,
+    long TotalPublishedDurationSeconds);
+
+public sealed record PopularVenueModel(
+    Guid Id,
+    string Name,
+    string City,
+    string Tag,
+    string? ImageUrl,
+    int SortOrder,
+    bool IsActive,
+    DateTime CreatedAtUtc,
+    DateTime? UpdatedAtUtc);
 
 public sealed record PublicFeaturedEventModel(
     Guid EventId,
@@ -153,3 +172,17 @@ public sealed record AdminInboxMessageModel(
     string SenderEmail,
     string MessageText,
     DateTime CreatedAtUtc);
+
+public sealed record SlotStatusAuditModel(
+    Guid Id,
+    string SlotType,
+    Guid SlotId,
+    bool PreviousIsActive,
+    bool NewIsActive,
+    DateTime ChangedAtUtc,
+    string? ChangedByUserId,
+    string? ChangedByEmail,
+    string? ChangedByRole,
+    string? RequestIp,
+    string ChangedBy,
+    string ActionLabel);

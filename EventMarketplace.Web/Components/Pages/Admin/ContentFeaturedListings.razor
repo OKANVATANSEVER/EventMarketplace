@@ -1,0 +1,258 @@
+@page "/admin/content/featured-listings"
+@layout AdminLayout
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+@inject ApiClient Api
+
+<PageTitle>Sponsorlu Listing Slotu</PageTitle>
+
+<h1 class="em-page-title">Sponsorlu Listing Slotu</h1>
+<p class="em-page-subtitle">Sponsorlu listelemeleri silmeden yonetin, aktif-pasif akisini ve toplam yayin suresini izleyin.</p>
+
+<AdminContentNav />
+
+@if (!string.IsNullOrWhiteSpace(_info))
+{
+    <div class="em-alert em-alert-success">@_info</div>
+}
+
+<div class="em-stat-grid">
+    <div class="em-stat-card"><span>Toplam</span><strong>@_featuredListings.Count</strong></div>
+    <div class="em-stat-card"><span>Aktif</span><strong>@_featuredListings.Count(x => x.IsActive)</strong></div>
+    <div class="em-stat-card"><span>Pasif</span><strong>@_featuredListings.Count(x => !x.IsActive)</strong></div>
+</div>
+
+<section class="mkt-section">
+    <div class="mkt-placement-guide">
+        <strong>Placement Kullanim Rehberi</strong>
+        <span><b>home-carousel</b>: Ana sayfada sponsorlu etkinlik carousel alani.</span>
+    </div>
+    <div class="mkt-form-grid">
+        <select class="em-select" @bind="_featuredEventId">
+            <option value="">Etkinlik Sec</option>
+            @foreach (var ev in _allEvents)
+            {
+                <option value="@ev.Id">@ev.Title</option>
+            }
+        </select>
+        <select class="em-select" @bind="_featuredPlacement">
+            @foreach (var placement in _allowedPlacements)
+            {
+                <option value="@placement">@placement</option>
+            }
+        </select>
+        <input class="em-input" type="number" min="0" @bind="_featuredPriority" />
+        <input class="em-input" type="datetime-local" @bind="_featuredExpiresAt" />
+        <label class="mkt-muted"><input type="checkbox" @bind="_featuredIsActive" /> Aktif</label>
+        <button type="button" class="mkt-btn mkt-btn-primary mkt-full" @onclick="SaveFeaturedAsync">@(_editingFeaturedId is null ? "Sponsorlu Ekle" : "Sponsorlu Guncelle")</button>
+    </div>
+</section>
+
+<div class="em-filter-pills">
+    <button type="button" class="@FilterClass("all")" @onclick='() => SetFilter("all")'>Tumu (@_featuredListings.Count)</button>
+    <button type="button" class="@FilterClass("active")" @onclick='() => SetFilter("active")'>Aktif (@_featuredListings.Count(x => x.IsActive))</button>
+    <button type="button" class="@FilterClass("passive")" @onclick='() => SetFilter("passive")'>Pasif (@_featuredListings.Count(x => !x.IsActive))</button>
+</div>
+
+@if (FilteredListings.Count > 0)
+{
+    <table class="em-table">
+        <thead>
+            <tr>
+                <th>Etkinlik</th>
+                <th>Placement</th>
+                <th>Durum</th>
+                <th>Yayinda Kalma</th>
+                <th>Bitis</th>
+                <th>Son Durum Degisimi</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var row in FilteredListings)
+            {
+                <tr>
+                    <td>@row.EventTitle</td>
+                    <td>@row.Placement<br /><small class="mkt-muted">Oncelik: @row.Priority</small></td>
+                    <td><span class="em-status-dot @(row.IsActive ? "active" : "passive")"></span>@(row.IsActive ? "Aktif" : "Pasif")</td>
+                    <td>@FormatDuration(row.TotalPublishedDurationSeconds)</td>
+                    <td>@FormatDate(row.ExpiresAtUtc)</td>
+                    <td>@FormatDate(row.LastStatusChangedAtUtc)</td>
+                    <td>
+                        <button type="button" class="em-btn-outline" @onclick="() => LoadFeaturedToForm(row)">Duzenle</button>
+                        <button type="button" class="em-btn-outline" @onclick="() => ToggleFeaturedStatusAsync(row)">@(row.IsActive ? "Pasife Al" : "Aktife Al")</button>
+                        <button type="button" class="em-btn-outline" @onclick="() => LoadHistoryAsync(row)">Gecmis</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <p class="mkt-muted">Secilen filtrede sponsorlu listing bulunmuyor.</p>
+}
+
+@if (_selectedHistoryListingId is not null)
+{
+    <section class="mkt-section">
+        <h2>Durum Gecmisi - @_selectedHistoryTitle</h2>
+        @if (_statusHistory.Count == 0)
+        {
+            <p class="mkt-muted">Bu listing icin henuz durum gecmisi yok.</p>
+        }
+        else
+        {
+            <table class="em-table">
+                <thead>
+                    <tr>
+                        <th>Tarih</th>
+                        <th>Islem</th>
+                        <th>Onceki</th>
+                        <th>Yeni</th>
+                        <th>Yapan</th>
+                        <th>Rol</th>
+                        <th>IP</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in _statusHistory)
+                    {
+                        <tr>
+                            <td>@item.ChangedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                            <td>@item.ActionLabel</td>
+                            <td>@(item.PreviousIsActive ? "Aktif" : "Pasif")</td>
+                            <td>@(item.NewIsActive ? "Aktif" : "Pasif")</td>
+                            <td>@item.ChangedBy</td>
+                            <td>@(string.IsNullOrWhiteSpace(item.ChangedByRole) ? "-" : item.ChangedByRole)</td>
+                            <td>@(string.IsNullOrWhiteSpace(item.RequestIp) ? "-" : item.RequestIp)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </section>
+}
+
+@code {
+    private readonly string[] _allowedPlacements = ["home-carousel"];
+    private string _featuredPlacement = "home-carousel";
+    private string _featuredEventId = string.Empty;
+    private int _featuredPriority = 1;
+    private DateTime? _featuredExpiresAt = DateTime.Now.AddDays(30);
+    private bool _featuredIsActive = true;
+    private Guid? _editingFeaturedId;
+    private string _info = string.Empty;
+    private string _statusFilter = "all";
+    private List<FeaturedListingModel> _featuredListings = [];
+    private List<EventListItemModel> _allEvents = [];
+    private Guid? _selectedHistoryListingId;
+    private string _selectedHistoryTitle = string.Empty;
+    private List<SlotStatusAuditModel> _statusHistory = [];
+
+    private List<FeaturedListingModel> FilteredListings => _statusFilter switch
+    {
+        "active" => _featuredListings.Where(x => x.IsActive).ToList(),
+        "passive" => _featuredListings.Where(x => !x.IsActive).ToList(),
+        _ => _featuredListings
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync();
+    }
+
+    private async Task RefreshAsync()
+    {
+        _featuredListings = (await Api.GetFeaturedListingsAdminAsync())
+            .OrderByDescending(x => x.IsActive)
+            .ThenBy(x => x.Placement)
+            .ThenBy(x => x.Priority)
+            .ToList();
+        _allEvents = await Api.GetAllEventsAdminAsync();
+    }
+
+    private async Task SaveFeaturedAsync()
+    {
+        if (!Guid.TryParse(_featuredEventId, out var eventId))
+        {
+            _info = "Lutfen etkinlik secin.";
+            return;
+        }
+
+        var expiresUtc = _featuredExpiresAt?.ToUniversalTime();
+
+        bool ok;
+        if (_editingFeaturedId is null)
+        {
+            ok = await Api.CreateFeaturedListingAsync(eventId, _featuredPlacement, _featuredPriority, expiresUtc, _featuredIsActive);
+            _info = ok ? "Sponsorlu listing eklendi." : "Sponsorlu listing eklenemedi.";
+        }
+        else
+        {
+            ok = await Api.UpdateFeaturedListingAsync(_editingFeaturedId.Value, eventId, _featuredPlacement, _featuredPriority, expiresUtc, _featuredIsActive);
+            _info = ok ? "Sponsorlu listing guncellendi." : "Sponsorlu listing guncellenemedi.";
+        }
+
+        if (!ok)
+            return;
+
+        ResetForm();
+        await RefreshAsync();
+    }
+
+    private void LoadFeaturedToForm(FeaturedListingModel row)
+    {
+        _editingFeaturedId = row.Id;
+        _featuredEventId = row.EventId.ToString();
+        _featuredPlacement = row.Placement;
+        _featuredPriority = row.Priority;
+        _featuredExpiresAt = row.ExpiresAtUtc?.ToLocalTime();
+        _featuredIsActive = row.IsActive;
+    }
+
+    private async Task ToggleFeaturedStatusAsync(FeaturedListingModel row)
+    {
+        var ok = await Api.UpdateFeaturedListingAsync(row.Id, row.EventId, row.Placement, row.Priority, row.ExpiresAtUtc, !row.IsActive);
+        _info = ok ? "Sponsorlu listing durumu guncellendi." : "Durum guncellenemedi.";
+        if (ok)
+        {
+            await RefreshAsync();
+            if (_selectedHistoryListingId == row.Id)
+                await LoadHistoryAsync(row);
+        }
+    }
+
+    private async Task LoadHistoryAsync(FeaturedListingModel row)
+    {
+        _selectedHistoryListingId = row.Id;
+        _selectedHistoryTitle = row.EventTitle;
+        _statusHistory = await Api.GetFeaturedListingStatusHistoryAsync(row.Id);
+    }
+
+    private void ResetForm()
+    {
+        _editingFeaturedId = null;
+        _featuredEventId = string.Empty;
+        _featuredPlacement = "home-carousel";
+        _featuredPriority = 1;
+        _featuredExpiresAt = DateTime.Now.AddDays(30);
+        _featuredIsActive = true;
+    }
+
+    private void SetFilter(string filter) => _statusFilter = filter;
+    private string FilterClass(string filter) => _statusFilter == filter ? "active" : string.Empty;
+
+    private static string FormatDuration(long totalSeconds)
+    {
+        var duration = TimeSpan.FromSeconds(totalSeconds);
+        if (duration.TotalDays >= 1)
+            return $"{(int)duration.TotalDays} gun {duration.Hours} sa";
+        if (duration.TotalHours >= 1)
+            return $"{(int)duration.TotalHours} sa {duration.Minutes} dk";
+        return $"{Math.Max(1, duration.Minutes)} dk";
+    }
+
+    private static string FormatDate(DateTime? value)
+        => value?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "-";
+}

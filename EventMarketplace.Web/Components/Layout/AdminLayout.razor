@@ -16,9 +16,18 @@
             <a href="/admin/members" class="@NavClass("/admin/members")">
                 <span>👥</span> Üyeler
             </a>
-            <a href="/admin/content" class="@NavClass("/admin/content")">
-                <span>🧩</span> Icerik
-            </a>
+            <div class="em-sidebar-group">
+                <a href="/admin/content" class="@NavClass("/admin/content")">
+                    <span>🧩</span> Icerik Yonetimi
+                </a>
+                <div class="em-sidebar-subnav">
+                    <a href="/admin/content/pages" class="@NavClass("/admin/content/pages")">Sayfa Icerikleri</a>
+                    <a href="/admin/content/ad-slots" class="@NavClass("/admin/content/ad-slots")">Reklam Slotlari</a>
+                    <a href="/admin/content/featured-listings" class="@NavClass("/admin/content/featured-listings")">Sponsorlu Listing Slotu</a>
+                    <a href="/admin/content/inbox" class="@NavClass("/admin/content/inbox")">Mesaj Inbox</a>
+                    <a href="/admin/content/venues" class="@NavClass("/admin/content/venues")">Populer Mekanlar</a>
+                </div>
+            </div>
             <hr />
             <a href="/">← Siteye Dön</a>
             <button @onclick="HandleLogout" class="em-sidebar-logout">Çıkış Yap</button>
@@ -34,7 +43,11 @@
 
 @code {
     private string NavClass(string href)
-        => Nav.Uri.Contains(href, StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty;
+    {
+        var current = Nav.ToBaseRelativePath(Nav.Uri);
+        var target = href.TrimStart('/');
+        return current.StartsWith(target, StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty;
+    }
 
     private async Task HandleLogout()
     {

@@ -1,10 +1,30 @@
-<div class="mkt-banner-ad" style="min-height:@Height">
-    <p>@Title</p>
-    <span>@Subtitle</span>
-</div>
+@if (!string.IsNullOrWhiteSpace(LinkUrl))
+{
+    <a class="mkt-banner-ad mkt-banner-ad-link" style="min-height:@Height" href="@LinkUrl" target="_blank" rel="noopener noreferrer nofollow">
+        @if (!string.IsNullOrWhiteSpace(ImageUrl))
+        {
+            <img class="mkt-banner-ad-image" src="@ImageUrl" alt="@Title" loading="lazy" />
+        }
+        <p>@Title</p>
+        <span>@Subtitle</span>
+    </a>
+}
+else
+{
+    <div class="mkt-banner-ad" style="min-height:@Height">
+        @if (!string.IsNullOrWhiteSpace(ImageUrl))
+        {
+            <img class="mkt-banner-ad-image" src="@ImageUrl" alt="@Title" loading="lazy" />
+        }
+        <p>@Title</p>
+        <span>@Subtitle</span>
+    </div>
+}
 
 @code {
     [Parameter] public string Title { get; set; } = "Reklam Alanı";
     [Parameter] public string Subtitle { get; set; } = "728x90 Banner";
     [Parameter] public string Height { get; set; } = "90px";
+    [Parameter] public string? LinkUrl { get; set; }
+    [Parameter] public string? ImageUrl { get; set; }
 }

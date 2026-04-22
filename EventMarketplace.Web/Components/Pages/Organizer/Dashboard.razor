@@ -39,28 +39,56 @@
         <p class="mkt-muted">@_info</p>
     }
     <div class="mkt-form-grid">
-        <input class="em-input" placeholder="Başlık" @bind="_title" />
-        <select class="em-select" @bind="_categoryId">
-            <option value="">Kategori</option>
-            @foreach (var category in _categories)
-            {
-                <option value="@category.Id">@category.Name</option>
-            }
-        </select>
-        <input class="em-input" type="datetime-local" @bind="_startDate" />
-        <input class="em-input" type="datetime-local" @bind="_endDate" />
-        <input class="em-input" placeholder="Lokasyon" @bind="_city" />
-        <input class="em-input" type="number" min="0" step="0.01" placeholder="Bilet Fiyatı" @bind="_price" />
-        <select class="em-select" @bind="_selectedShowcase">
-            <option>Vitrin Seçeneği</option>
-            <option>Yok</option>
-            <option>Bronze</option>
-            <option>Silver</option>
-            <option>Gold</option>
-        </select>
-        <textarea class="em-input mkt-full" placeholder="Açıklama" @bind="_description"></textarea>
-        <input class="em-input mkt-full" placeholder="Görsel URL'leri (virgül ile)" @bind="_galleryCsv" />
-        <button type="button" class="mkt-btn mkt-btn-primary mkt-full" @onclick="SubmitAsync" disabled="@_saving">Etkinliği Yayınla</button>
+        <div class="em-form-group">
+            <label>Baslik</label>
+            <input class="em-input" @bind="_title" />
+        </div>
+        <div class="em-form-group">
+            <label>Kategori</label>
+            <select class="em-select" @bind="_categoryId">
+                <option value="">Kategori Sec</option>
+                @foreach (var category in _categories)
+                {
+                    <option value="@category.Id">@category.Name</option>
+                }
+            </select>
+        </div>
+        <div class="em-form-group">
+            <label>Baslangic Tarihi</label>
+            <input class="em-input" type="datetime-local" @bind="_startDate" />
+        </div>
+        <div class="em-form-group">
+            <label>Bitis Tarihi</label>
+            <input class="em-input" type="datetime-local" @bind="_endDate" />
+        </div>
+        <div class="em-form-group">
+            <label>Lokasyon</label>
+            <input class="em-input" @bind="_city" />
+        </div>
+        <div class="em-form-group">
+            <label>Bilet Fiyati</label>
+            <input class="em-input" type="number" min="0" step="0.01" @bind="_price" />
+        </div>
+        <div class="em-form-group">
+            <label>Vitrin Secenegi</label>
+            <select class="em-select" @bind="_selectedShowcase">
+                <option>Yok</option>
+                <option>Bronze</option>
+                <option>Silver</option>
+                <option>Gold</option>
+            </select>
+        </div>
+        <div class="em-form-group mkt-full">
+            <label>Aciklama</label>
+            <textarea class="em-input" @bind="_description"></textarea>
+        </div>
+        <div class="em-form-group mkt-full">
+            <label>Gorsel URL'leri (virgul ile)</label>
+            <input class="em-input" @bind="_galleryCsv" />
+        </div>
+        <div class="mkt-full">
+            <button type="button" class="mkt-btn mkt-btn-primary mkt-full" @onclick="SubmitAsync" disabled="@_saving">Etkinligi Yayinla</button>
+        </div>
     </div>
 </section>
 
@@ -98,14 +126,52 @@
 
 <section class="mkt-section">
     <h2>Reklam Slotlarim</h2>
+    <div class="mkt-placement-guide">
+        <strong>Placement Kullanim Rehberi</strong>
+        <span><b>home-hero</b>: Ana sayfa ust banner alani.</span>
+        <span><b>detail-sidebar</b>: Etkinlik detay sayfasi sag kolon reklam alani.</span>
+    </div>
     <div class="mkt-form-grid">
-        <input class="em-input" placeholder="Placement (home-hero)" @bind="_adPlacement" />
-        <input class="em-input" placeholder="Baslik" @bind="_adTitle" />
-        <input class="em-input mkt-full" placeholder="Alt Baslik" @bind="_adSubtitle" />
-        <input class="em-input" type="number" min="0" @bind="_adPriority" />
-        <input class="em-input" type="datetime-local" @bind="_adStart" />
-        <input class="em-input" type="datetime-local" @bind="_adEnd" />
-        <button type="button" class="mkt-btn mkt-btn-primary mkt-full" @onclick="SaveAdAsync">@(_editingAdId is null ? "Reklam Ekle" : "Reklami Guncelle")</button>
+        <div class="em-form-group">
+            <label>Placement</label>
+            <select class="em-select" @bind="_adPlacement">
+                @foreach (var placement in _allowedAdPlacements)
+                {
+                    <option value="@placement">@placement</option>
+                }
+            </select>
+        </div>
+        <div class="em-form-group">
+            <label>Baslik</label>
+            <input class="em-input" @bind="_adTitle" />
+        </div>
+        <div class="em-form-group mkt-full">
+            <label>Alt Baslik</label>
+            <input class="em-input" @bind="_adSubtitle" />
+        </div>
+        <div class="em-form-group">
+            <label>Link URL</label>
+            <input class="em-input" @bind="_adLinkUrl" />
+        </div>
+        <div class="em-form-group">
+            <label>Gorsel URL</label>
+            <input class="em-input" @bind="_adImageUrl" />
+        </div>
+        <div class="em-form-group">
+            <label>Oncelik</label>
+            <input class="em-input" type="number" min="0" @bind="_adPriority" />
+        </div>
+        <div class="em-form-group">
+            <label>Yayin Baslangic</label>
+            <input class="em-input" type="datetime-local" @bind="_adStart" />
+        </div>
+        <div class="em-form-group">
+            <label>Yayin Bitis</label>
+            <input class="em-input" type="datetime-local" @bind="_adEnd" />
+        </div>
+        <div class="mkt-full">
+            <button type="button" class="mkt-btn mkt-btn-primary mkt-full" @onclick="SaveAdAsync">@(_editingAdId is null ? "Reklam Ekle" : "Reklami Guncelle")</button>
+        </div>
     </div>
 
     @if (_myAds.Any())
@@ -140,6 +206,7 @@
 <AccountSettingsPanel />
 
 @code {
+    private readonly string[] _allowedAdPlacements = ["home-hero", "detail-sidebar"];
     private List<CategoryModel> _categories = [];
     private List<OrganizerEventModel> _myEvents = [];
     private List<AdvertisementSlotModel> _myAds = [];
@@ -160,6 +227,8 @@
     private string _adPlacement = "home-hero";
     private string _adTitle = string.Empty;
     private string _adSubtitle = string.Empty;
+    private string? _adLinkUrl;
+    private string? _adImageUrl;
     private int _adPriority = 1;
     private DateTime? _adStart;
     private DateTime? _adEnd;
@@ -281,6 +350,8 @@
         _adPlacement = ad.Placement;
         _adTitle = ad.Title;
         _adSubtitle = ad.Subtitle;
+        _adLinkUrl = ad.LinkUrl;
+        _adImageUrl = ad.ImageUrl;
         _adPriority = ad.Priority;
         _adStart = ad.StartDateUtc?.ToLocalTime();
         _adEnd = ad.EndDateUtc?.ToLocalTime();
@@ -294,12 +365,12 @@
         bool ok;
         if (_editingAdId is null)
         {
-            ok = await Api.CreateMyOrganizerAdSlotAsync(_adPlacement, _adTitle, _adSubtitle, null, null, true, _adPriority, startUtc, endUtc);
+            ok = await Api.CreateMyOrganizerAdSlotAsync(_adPlacement, _adTitle, _adSubtitle, _adLinkUrl, _adImageUrl, true, _adPriority, startUtc, endUtc);
             _info = ok ? "Reklam slotu eklendi." : "Reklam slotu eklenemedi.";
         }
         else
         {
-            ok = await Api.UpdateMyOrganizerAdSlotAsync(_editingAdId.Value, _adPlacement, _adTitle, _adSubtitle, null, null, true, _adPriority, startUtc, endUtc);
+            ok = await Api.UpdateMyOrganizerAdSlotAsync(_editingAdId.Value, _adPlacement, _adTitle, _adSubtitle, _adLinkUrl, _adImageUrl, true, _adPriority, startUtc, endUtc);
             _info = ok ? "Reklam slotu guncellendi." : "Reklam slotu guncellenemedi.";
         }
 
@@ -308,6 +379,8 @@
         _editingAdId = null;
         _adTitle = string.Empty;
         _adSubtitle = string.Empty;
+        _adLinkUrl = null;
+        _adImageUrl = null;
         _adPriority = 1;
         _adStart = null;
         _adEnd = null;

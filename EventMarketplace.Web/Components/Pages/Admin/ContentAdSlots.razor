@@ -1,0 +1,269 @@
+@page "/admin/content/ad-slots"
+@layout AdminLayout
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+@inject ApiClient Api
+
+<PageTitle>Reklam Slotlari</PageTitle>
+
+<h1 class="em-page-title">Reklam Slotlari</h1>
+<p class="em-page-subtitle">Silmeden yonetin, aktif-pasif durumunu ve toplam yayin suresini izleyin.</p>
+
+<AdminContentNav />
+
+@if (!string.IsNullOrWhiteSpace(_info))
+{
+    <div class="em-alert em-alert-success">@_info</div>
+}
+
+<div class="em-stat-grid">
+    <div class="em-stat-card"><span>Toplam</span><strong>@_adSlots.Count</strong></div>
+    <div class="em-stat-card"><span>Aktif</span><strong>@_adSlots.Count(x => x.IsActive)</strong></div>
+    <div class="em-stat-card"><span>Pasif</span><strong>@_adSlots.Count(x => !x.IsActive)</strong></div>
+</div>
+
+<section class="mkt-section">
+    <div class="mkt-placement-guide">
+        <strong>Placement Kullanim Rehberi</strong>
+        <span><b>home-hero</b>: Ana sayfa ust banner alani.</span>
+        <span><b>detail-sidebar</b>: Etkinlik detay sayfasi sag kolon reklam alani.</span>
+    </div>
+    <div class="mkt-form-grid">
+        <select class="em-select" @bind="_adPlacement">
+            @foreach (var placement in _allowedPlacements)
+            {
+                <option value="@placement">@placement</option>
+            }
+        </select>
+        <input class="em-input" placeholder="Baslik" @bind="_adTitle" />
+        <input class="em-input mkt-full" placeholder="Alt Baslik" @bind="_adSubtitle" />
+        <input class="em-input" placeholder="Link URL" @bind="_adLinkUrl" />
+        <input class="em-input" placeholder="Image URL" @bind="_adImageUrl" />
+        <input class="em-input" type="number" min="0" @bind="_adPriority" />
+        <input class="em-input" type="datetime-local" @bind="_adStartDate" />
+        <input class="em-input" type="datetime-local" @bind="_adEndDate" />
+        <label class="mkt-muted"><input type="checkbox" @bind="_adIsActive" /> Aktif</label>
+        <button type="button" class="mkt-btn mkt-btn-primary mkt-full" @onclick="SaveAdSlotAsync">@(_editingAdId is null ? "Slot Ekle" : "Slot Guncelle")</button>
+    </div>
+</section>
+
+<div class="em-filter-pills">
+    <button type="button" class="@FilterClass("all")" @onclick='() => SetFilter("all")'>Tumu (@_adSlots.Count)</button>
+    <button type="button" class="@FilterClass("active")" @onclick='() => SetFilter("active")'>Aktif (@_adSlots.Count(x => x.IsActive))</button>
+    <button type="button" class="@FilterClass("passive")" @onclick='() => SetFilter("passive")'>Pasif (@_adSlots.Count(x => !x.IsActive))</button>
+</div>
+
+@if (FilteredSlots.Count > 0)
+{
+    <table class="em-table">
+        <thead>
+            <tr>
+                <th>Placement</th>
+                <th>Baslik</th>
+                <th>Durum</th>
+                <th>Yayinda Kalma</th>
+                <th>Plan</th>
+                <th>Son Durum Degisimi</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var slot in FilteredSlots)
+            {
+                <tr>
+                    <td>@slot.Placement<br /><small class="mkt-muted">Oncelik: @slot.Priority</small></td>
+                    <td>@slot.Title</td>
+                    <td><span class="em-status-dot @(slot.IsActive ? "active" : "passive")"></span>@(slot.IsActive ? "Aktif" : "Pasif")</td>
+                    <td>@FormatDuration(slot.TotalPublishedDurationSeconds)</td>
+                    <td>@FormatSchedule(slot.StartDateUtc, slot.EndDateUtc)</td>
+                    <td>@FormatDate(slot.LastStatusChangedAtUtc)</td>
+                    <td>
+                        <button type="button" class="em-btn-outline" @onclick="() => LoadAdToForm(slot)">Duzenle</button>
+                        <button type="button" class="em-btn-outline" @onclick="() => ToggleAdStatusAsync(slot)">@(slot.IsActive ? "Pasife Al" : "Aktife Al")</button>
+                        <button type="button" class="em-btn-outline" @onclick="() => LoadHistoryAsync(slot)">Gecmis</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <p class="mkt-muted">Secilen filtrede reklam slotu bulunmuyor.</p>
+}
+
+@if (_selectedHistorySlotId is not null)
+{
+    <section class="mkt-section">
+        <h2>Durum Gecmisi - @_selectedHistoryTitle</h2>
+        @if (_statusHistory.Count == 0)
+        {
+            <p class="mkt-muted">Bu slot icin henuz durum gecmisi yok.</p>
+        }
+        else
+        {
+            <table class="em-table">
+                <thead>
+                    <tr>
+                        <th>Tarih</th>
+                        <th>Islem</th>
+                        <th>Onceki</th>
+                        <th>Yeni</th>
+                        <th>Yapan</th>
+                        <th>Rol</th>
+                        <th>IP</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in _statusHistory)
+                    {
+                        <tr>
+                            <td>@item.ChangedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                            <td>@item.ActionLabel</td>
+                            <td>@(item.PreviousIsActive ? "Aktif" : "Pasif")</td>
+                            <td>@(item.NewIsActive ? "Aktif" : "Pasif")</td>
+                            <td>@item.ChangedBy</td>
+                            <td>@(string.IsNullOrWhiteSpace(item.ChangedByRole) ? "-" : item.ChangedByRole)</td>
+                            <td>@(string.IsNullOrWhiteSpace(item.RequestIp) ? "-" : item.RequestIp)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </section>
+}
+
+@code {
+    private readonly string[] _allowedPlacements = ["home-hero", "detail-sidebar"];
+    private string _adPlacement = "home-hero";
+    private string _adTitle = string.Empty;
+    private string _adSubtitle = string.Empty;
+    private string? _adLinkUrl;
+    private string? _adImageUrl;
+    private bool _adIsActive = true;
+    private int _adPriority = 1;
+    private DateTime? _adStartDate;
+    private DateTime? _adEndDate;
+    private Guid? _editingAdId;
+    private string _info = string.Empty;
+    private string _statusFilter = "all";
+    private List<AdvertisementSlotModel> _adSlots = [];
+    private Guid? _selectedHistorySlotId;
+    private string _selectedHistoryTitle = string.Empty;
+    private List<SlotStatusAuditModel> _statusHistory = [];
+
+    private List<AdvertisementSlotModel> FilteredSlots => _statusFilter switch
+    {
+        "active" => _adSlots.Where(x => x.IsActive).ToList(),
+        "passive" => _adSlots.Where(x => !x.IsActive).ToList(),
+        _ => _adSlots
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync();
+    }
+
+    private async Task RefreshAsync()
+    {
+        _adSlots = (await Api.GetAdminAdSlotsAsync())
+            .OrderByDescending(x => x.IsActive)
+            .ThenBy(x => x.Placement)
+            .ThenBy(x => x.Priority)
+            .ToList();
+    }
+
+    private async Task SaveAdSlotAsync()
+    {
+        var startUtc = _adStartDate?.ToUniversalTime();
+        var endUtc = _adEndDate?.ToUniversalTime();
+
+        bool ok;
+        if (_editingAdId is null)
+        {
+            ok = await Api.CreateAdSlotAsync(_adPlacement, _adTitle, _adSubtitle, _adLinkUrl, _adImageUrl, _adIsActive, _adPriority, startUtc, endUtc);
+            _info = ok ? "Reklam slotu eklendi." : "Reklam slotu eklenemedi.";
+        }
+        else
+        {
+            ok = await Api.UpdateAdSlotAsync(_editingAdId.Value, _adPlacement, _adTitle, _adSubtitle, _adLinkUrl, _adImageUrl, _adIsActive, _adPriority, startUtc, endUtc);
+            _info = ok ? "Reklam slotu guncellendi." : "Reklam slotu guncellenemedi.";
+        }
+
+        if (!ok)
+            return;
+
+        ResetForm();
+        await RefreshAsync();
+    }
+
+    private void LoadAdToForm(AdvertisementSlotModel slot)
+    {
+        _editingAdId = slot.Id;
+        _adPlacement = slot.Placement;
+        _adTitle = slot.Title;
+        _adSubtitle = slot.Subtitle;
+        _adLinkUrl = slot.LinkUrl;
+        _adImageUrl = slot.ImageUrl;
+        _adIsActive = slot.IsActive;
+        _adPriority = slot.Priority;
+        _adStartDate = slot.StartDateUtc?.ToLocalTime();
+        _adEndDate = slot.EndDateUtc?.ToLocalTime();
+    }
+
+    private async Task ToggleAdStatusAsync(AdvertisementSlotModel slot)
+    {
+        var ok = await Api.UpdateAdSlotAsync(slot.Id, slot.Placement, slot.Title, slot.Subtitle, slot.LinkUrl, slot.ImageUrl, !slot.IsActive, slot.Priority, slot.StartDateUtc, slot.EndDateUtc);
+        _info = ok ? "Reklam slotu durumu guncellendi." : "Durum guncellenemedi.";
+        if (ok)
+        {
+            await RefreshAsync();
+            if (_selectedHistorySlotId == slot.Id)
+                await LoadHistoryAsync(slot);
+        }
+    }
+
+    private async Task LoadHistoryAsync(AdvertisementSlotModel slot)
+    {
+        _selectedHistorySlotId = slot.Id;
+        _selectedHistoryTitle = slot.Title;
+        _statusHistory = await Api.GetAdSlotStatusHistoryAsync(slot.Id);
+    }
+
+    private void ResetForm()
+    {
+        _editingAdId = null;
+        _adPlacement = "home-hero";
+        _adTitle = string.Empty;
+        _adSubtitle = string.Empty;
+        _adLinkUrl = null;
+        _adImageUrl = null;
+        _adIsActive = true;
+        _adPriority = 1;
+        _adStartDate = null;
+        _adEndDate = null;
+    }
+
+    private void SetFilter(string filter) => _statusFilter = filter;
+    private string FilterClass(string filter) => _statusFilter == filter ? "active" : string.Empty;
+
+    private static string FormatDuration(long totalSeconds)
+    {
+        var duration = TimeSpan.FromSeconds(totalSeconds);
+        if (duration.TotalDays >= 1)
+            return $"{(int)duration.TotalDays} gun {duration.Hours} sa";
+        if (duration.TotalHours >= 1)
+            return $"{(int)duration.TotalHours} sa {duration.Minutes} dk";
+        return $"{Math.Max(1, duration.Minutes)} dk";
+    }
+
+    private static string FormatSchedule(DateTime? startUtc, DateTime? endUtc)
+    {
+        var start = startUtc?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "Hemen";
+        var end = endUtc?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "Suresiz";
+        return $"{start} - {end}";
+    }
+
+    private static string FormatDate(DateTime? value)
+        => value?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "-";
+}

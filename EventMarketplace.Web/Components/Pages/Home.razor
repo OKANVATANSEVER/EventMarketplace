@@ -23,13 +23,11 @@
 </section>
 
 <section class="mkt-section">
-    <div class="mkt-section-header">
-        <h2>Öne Çıkan Etkinlikler</h2>
-        <span>Sponsorlu Carousel</span>
-    </div>
+    
     <FeaturedCarousel Events="_featured" />
 </section>
-
+@if( _todayCategories.Length > 0)
+{
 <section class="mkt-section">
     <div class="mkt-section-header">
         <h2>Bugün Etkinlikler</h2>
@@ -41,7 +39,9 @@
         }
     </div>
 </section>
-
+}
+@if(_tonight.Count > 0)
+{
 <section class="mkt-section">
     <div class="mkt-section-header">
         <h2>Bu Akşam Ne Var?</h2>
@@ -53,42 +53,55 @@
         }
     </div>
 </section>
-
-<section class="mkt-section">
-    <div class="mkt-section-header">
-        <h2>Popüler Mekanlar</h2>
-    </div>
-    <div class="mkt-venues-grid">
-        <VenueCard Name="Volkswagen Arena" City="İstanbul" Tag="Konser" />
-        <VenueCard Name="CerModern" City="Ankara" Tag="Sergi" />
-        <VenueCard Name="Ahmed Adnan Saygun" City="İzmir" Tag="Klasik Müzik" />
-        <VenueCard Name="DasDas" City="İstanbul" Tag="Tiyatro" />
-    </div>
-</section>
+}
+ @if (_popularVenues.Count > 0)
+        {
+            <section class="mkt-section">
+                <div class="mkt-section-header">
+                    <h2>Popüler Mekanlar</h2>
+                </div>
+                <div class="mkt-venues-grid">
+                    @if (_popularVenues.Count > 0)
+                    {
+                        @foreach (var venue in _popularVenues)
+                        {
+                            <VenueCard Name="@venue.Name" City="@venue.City" Tag="@venue.Tag" ImageUrl="@venue.ImageUrl" />
+                        }
+                    }
+                    
+                </div>
+            </section>
+}
 
 <section class="mkt-section">
     <BannerAd
         Title="@(_heroBanner?.Title ?? "Reklam Alanı")"
-        Subtitle="@(_heroBanner?.Subtitle ?? "728x90 Banner")" />
+    Subtitle="@(_heroBanner?.Subtitle ?? "728x90 Banner")"
+    LinkUrl="@_heroBanner?.LinkUrl"
+    ImageUrl="@_heroBanner?.ImageUrl"
+    Height="140px" />
 </section>
 
-<section class="mkt-section">
-    <div class="mkt-section-header">
-        <h2>Son Eklenen Etkinlik İlanları</h2>
-    </div>
-    <div class="mkt-card-grid">
-        @foreach (var ev in _latest)
-        {
-            <EventCard Event="ev" />
-        }
-    </div>
-</section>
-
+@if (_latest.Count > 0)
+{
+    <section class="mkt-section">
+        <div class="mkt-section-header">
+           <h2>Son Eklenen Etkinlik İlanları</h2>
+        </div>
+        <div class="mkt-card-grid">
+            @foreach (var ev in _latest)
+            {
+                <EventCard Event="ev" />
+            }
+        </div>
+    </section>
+}
 
 @code {
     private List<PublicFeaturedEventModel> _featured = [];
     private List<EventListItemModel> _tonight = [];
     private List<EventListItemModel> _latest = [];
+    private List<PopularVenueModel> _popularVenues = [];
     private readonly string[] _todayCategories = ["Konserler", "Tiyatro", "Workshop", "Çocuk"];
     private int _liveCounter;
     private int _newCount;
@@ -99,6 +112,7 @@
         var featuredResult = await Api.GetPublicFeaturedAsync("home-carousel");
         var recentResult = await Api.GetEventsAsync(isApproved: true, page: 1, pageSize: 24);
         var heroAds = await Api.GetPublicAdSlotsAsync("home-hero");
+        _popularVenues = await Api.GetPublicPopularVenuesAsync();
 
         _featured = featuredResult.OrderBy(x => x.StartDate).ToList();
         _heroBanner = heroAds.OrderBy(x => x.Priority).FirstOrDefault();
@@ -115,7 +129,7 @@
 
         if (_tonight.Count == 0)
         {
-            _tonight = all.Take(6).ToList();
+            //_tonight = all.Take(6).ToList();
         }
 
         _liveCounter = all.Count;
