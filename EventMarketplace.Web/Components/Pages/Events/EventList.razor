@@ -1,87 +1,130 @@
-@page "/"
 @page "/events"
 @layout MainLayout
 @rendermode InteractiveServer
 @inject ApiClient Api
+@inject NavigationManager Nav
 
-<PageTitle>Etkinlikler – EventMarketplace</PageTitle>
+<PageTitle>Etkinlik Listeleme - EventPazar</PageTitle>
 
-<div class="em-events-page">
-    <h1 class="em-page-title">🎪 Tüm Etkinlikler</h1>
+<div class="mkt-listing-layout">
+    <FilterSidebar
+        Categories="_categories"
+        City="_searchCity"
+        Date="_selectedDate"
+        CategoryId="_categoryId"
+        FreeOnly="_freeOnly"
+        PriceRange="_priceRange"
+        Period="_period"
+        FeaturedOnly="_featured"
+        CityChanged="SetCityAsync"
+        DateChanged="SetDateAsync"
+        CategoryIdChanged="SetCategoryAsync"
+        FreeOnlyChanged="SetFreeOnlyAsync"
+        PriceRangeChanged="SetPriceRangeAsync"
+        PeriodChanged="SetPeriodAsync"
+        FeaturedOnlyChanged="SetFeaturedAsync" />
 
-    <!-- Filters -->
-    <div class="em-filters">
-        <input @bind="_searchTitle" @bind:event="oninput" @bind:after="SearchAsync"
-            class="em-input" placeholder="Etkinlik adı ara..." />
-        <input @bind="_searchCity" @bind:event="oninput" @bind:after="SearchAsync"
-            class="em-input" placeholder="Şehir ara..." />
-        <select @bind="_categoryId" @bind:after="SearchAsync" class="em-select">
-            <option value="">Tüm Kategoriler</option>
-            @foreach (var cat in _categories)
-            {
-                <option value="@cat.Id">@cat.Name</option>
-            }
-        </select>
-        <select @bind="_featured" @bind:after="SearchAsync" class="em-select">
-            <option value="">Tümü</option>
-            <option value="true">⭐ Öne Çıkanlar</option>
-        </select>
-        <select @bind="_approved" @bind:after="SearchAsync" class="em-select">
-            <option value="">Tüm Etkinlikler</option>
-            <option value="true">Aktif</option>
-            <option value="false">Pasif</option>
-        </select>
-        <button @onclick="ResetFilters" class="em-btn-outline">Sıfırla</button>
-    </div>
-
-    @if (_loading)
-    {
-        <div class="em-loading"><div class="em-spinner"></div><p>Yükleniyor...</p></div>
-    }
-    else if (!_result?.Items.Any() ?? true)
-    {
-        <div class="em-empty-state">
-            <p>🔍 Bu kriterlere uygun etkinlik bulunamadı.</p>
-        </div>
-    }
-    else
-    {
-        <div class="em-events-grid">
-            @foreach (var ev in _result!.Items)
-            {
-                <EventCard Event="ev" />
-            }
+    <section>
+        <div class="mkt-listing-topbar">
+            <h1>Etkinlik İlanları</h1>
+            <div class="mkt-listing-tools">
+                <button class="mkt-toggle @( _showMap ? "active" : string.Empty )" @onclick="() => _showMap = true">Harita</button>
+                <button class="mkt-toggle @( !_showMap ? "active" : string.Empty )" @onclick="() => _showMap = false">Liste</button>
+                <select class="em-select" @bind="_sortBy" @bind:after="SortClientSide">
+                    <option value="dateAsc">Tarihe göre (yakın)</option>
+                    <option value="dateDesc">Tarihe göre (uzak)</option>
+                    <option value="priceAsc">Fiyat artan</option>
+                    <option value="priceDesc">Fiyat azalan</option>
+                </select>
+                <button @onclick="ResetFilters" class="em-btn-outline">Sıfırla</button>
+            </div>
         </div>
 
-        <!-- Pagination -->
-        @if (_result.TotalCount > _pageSize)
+        @if (_showMap)
         {
-            <div class="em-pagination">
-                <button @onclick="PrevPage" disabled="@(_page <= 1)" class="em-btn-outline">← Önceki</button>
-                <span>Sayfa @_page / @TotalPages</span>
-                <button @onclick="NextPage" disabled="@(_page >= TotalPages)" class="em-btn-outline">Sonraki →</button>
+            <div class="mkt-map-placeholder">Harita görünümü MVP için placeholder olarak hazır.</div>
+        }
+
+        @if (_loading)
+        {
+            <div class="em-loading"><div class="em-spinner"></div><p>Yükleniyor...</p></div>
+        }
+        else if (!_filteredItems.Any())
+        {
+            <div class="em-empty-state">
+                <p>Bu kriterlere uygun etkinlik bulunamadı.</p>
             </div>
         }
-    }
+        else
+        {
+            <div class="mkt-card-grid">
+                @foreach (var ev in _filteredItems)
+                {
+                    <EventCard Event="ev" />
+                }
+            </div>
+
+            @if (_result is not null && _result.TotalCount > _pageSize)
+            {
+                <div class="em-pagination">
+                    <button @onclick="PrevPage" disabled="@(_page <= 1)" class="em-btn-outline">Önceki</button>
+                    <span>Sayfa @_page / @TotalPages</span>
+                    <button @onclick="NextPage" disabled="@(_page >= TotalPages)" class="em-btn-outline">Sonraki</button>
+                </div>
+            }
+        }
+    </section>
 </div>
 
 @code {
     private PagedResultModel<EventListItemModel>? _result;
+    private List<EventListItemModel> _filteredItems = [];
     private List<CategoryModel> _categories = [];
     private bool _loading = true;
+    private bool _showMap;
+    private string _sortBy = "dateAsc";
     private string _searchCity = string.Empty;
     private string _searchTitle = string.Empty;
     private string _featured = string.Empty;
-    private string _approved = "true";
+    private string _selectedDate = string.Empty;
     private string _categoryId = string.Empty;
+    private string _freeOnly = string.Empty;
+    private string _priceRange = string.Empty;
+    private string _period = string.Empty;
     private int _page = 1;
     private const int _pageSize = 9;
     private int TotalPages => (int)Math.Ceiling((double)(_result?.TotalCount ?? 0) / _pageSize);
 
     protected override async Task OnInitializedAsync()
     {
+        ApplyQueryParameters();
         _categories = await Api.GetCategoriesAsync();
+        if (_categories.Count == 0)
+        {
+            _categories =
+            [
+                new CategoryModel(Guid.Empty, "Konser"),
+                new CategoryModel(Guid.NewGuid(), "Tiyatro"),
+                new CategoryModel(Guid.NewGuid(), "Workshop"),
+                new CategoryModel(Guid.NewGuid(), "Çocuk")
+            ];
+        }
+
         await LoadAsync();
+    }
+
+    private void ApplyQueryParameters()
+    {
+        var uri = Nav.ToAbsoluteUri(Nav.Uri);
+        if (string.IsNullOrWhiteSpace(uri.Query))
+        {
+            return;
+        }
+
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+        _searchTitle = query.TryGetValue("title", out var title) ? title.ToString() : string.Empty;
+        _searchCity = query.TryGetValue("city", out var city) ? city.ToString() : string.Empty;
+        _selectedDate = query.TryGetValue("date", out var date) ? date.ToString() : string.Empty;
     }
 
     private async Task ResetFilters()
@@ -89,17 +132,22 @@
         _searchCity = string.Empty;
         _searchTitle = string.Empty;
         _featured = string.Empty;
-        _approved = "true";
+        _selectedDate = string.Empty;
         _categoryId = string.Empty;
+        _freeOnly = string.Empty;
+        _priceRange = string.Empty;
+        _period = string.Empty;
         _page = 1;
         await LoadAsync();
     }
 
-    private async Task SearchAsync()
-    {
-        _page = 1;
-        await LoadAsync();
-    }
+    private async Task SetCityAsync(string value) { _searchCity = value; _page = 1; await LoadAsync(); }
+    private async Task SetDateAsync(string value) { _selectedDate = value; _page = 1; await LoadAsync(); }
+    private async Task SetCategoryAsync(string value) { _categoryId = value; _page = 1; await LoadAsync(); }
+    private async Task SetFreeOnlyAsync(string value) { _freeOnly = value; _page = 1; await LoadAsync(); }
+    private async Task SetPriceRangeAsync(string value) { _priceRange = value; _page = 1; await LoadAsync(); }
+    private async Task SetPeriodAsync(string value) { _period = value; _page = 1; await LoadAsync(); }
+    private async Task SetFeaturedAsync(string value) { _featured = value; _page = 1; await LoadAsync(); }
 
     private async Task PrevPage()
     {
@@ -119,16 +167,69 @@
         StateHasChanged();
 
         bool? isFeatured = _featured == "true" ? true : null;
-        bool? isApproved = _approved == "true" ? true : (_approved == "false" ? false : null);
+        bool? isApproved = true;
         var city = string.IsNullOrWhiteSpace(_searchCity) ? null : _searchCity.Trim();
         var title = string.IsNullOrWhiteSpace(_searchTitle) ? null : _searchTitle.Trim();
-        var categoryId = string.IsNullOrEmpty(_categoryId) ? null : (Guid?)Guid.Parse(_categoryId);
+        var categoryId = string.IsNullOrEmpty(_categoryId) || !Guid.TryParse(_categoryId, out var parsedCategory)
+            ? null
+            : (Guid?)parsedCategory;
 
         _result = await Api.GetEventsAsync(city, categoryId, isFeatured, isApproved, title, _page, _pageSize);
-        if (_result is not null)
-        {
-            _result = _result with { Items = _result.Items.OrderByDescending(x => x.StartDate).ToList() };
-        }
+
+        ApplyClientSideFilters();
         _loading = false;
     }
+
+    private void ApplyClientSideFilters()
+    {
+        var list = _result?.Items.ToList() ?? [];
+
+        if (_freeOnly == "true")
+        {
+            list = list.Where(x => x.Price == 0).ToList();
+        }
+
+        if (!string.IsNullOrWhiteSpace(_selectedDate) && DateTime.TryParse(_selectedDate, out var selectedDate))
+        {
+            list = list.Where(x => x.StartDate.Date == selectedDate.Date).ToList();
+        }
+
+        if (_period == "today")
+        {
+            var now = DateTime.Now.Date;
+            list = list.Where(x => x.StartDate.Date == now).ToList();
+        }
+        else if (_period == "week")
+        {
+            var now = DateTime.Now.Date;
+            var end = now.AddDays(7);
+            list = list.Where(x => x.StartDate.Date >= now && x.StartDate.Date <= end).ToList();
+        }
+
+        if (_priceRange == "0-250")
+        {
+            list = list.Where(x => x.Price >= 0 && x.Price <= 250).ToList();
+        }
+        else if (_priceRange == "250-750")
+        {
+            list = list.Where(x => x.Price > 250 && x.Price <= 750).ToList();
+        }
+        else if (_priceRange == "750+")
+        {
+            list = list.Where(x => x.Price > 750).ToList();
+        }
+
+        _filteredItems = Sort(list);
+    }
+
+    private void SortClientSide() => _filteredItems = Sort(_filteredItems);
+
+    private List<EventListItemModel> Sort(IEnumerable<EventListItemModel> list)
+        => _sortBy switch
+        {
+            "dateDesc" => list.OrderByDescending(x => x.StartDate).ToList(),
+            "priceAsc" => list.OrderBy(x => x.Price).ToList(),
+            "priceDesc" => list.OrderByDescending(x => x.Price).ToList(),
+            _ => list.OrderBy(x => x.StartDate).ToList()
+        };
 }

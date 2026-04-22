@@ -4,7 +4,7 @@
 @inject ApiClient Api
 @inject NavigationManager Nav
 
-<PageTitle>Etkinlik Detayı – EventMarketplace</PageTitle>
+<PageTitle>Etkinlik Detayı - EventPazar</PageTitle>
 
 @if (_loading)
 {
@@ -19,42 +19,188 @@ else if (_event is null)
 }
 else
 {
-    <div class="em-event-detail">
-        <div class="em-event-detail-header">
-            @if (_event.IsFeatured)
-            {
-                <span class="em-badge em-badge-featured">⭐ Öne Çıkan</span>
-            }
-            <span class="em-badge">@_event.CategoryName</span>
+    <div class="mkt-detail-layout">
+        <article class="mkt-detail-main">
             <h1>@_event.Title</h1>
-            <div class="em-event-meta">
-                <span>📅 @_event.StartDate.ToString("dd MMMM yyyy, HH:mm")</span>
-                <span>📍 @_event.City</span>
-                <span>💰 @(_event.Price == 0 ? "Ücretsiz" : $"₺{_event.Price:N2}")</span>
+            <div class="mkt-cover-image"></div>
+
+            <div class="mkt-detail-meta-grid">
+                <p><strong>Tarih:</strong> @_event.StartDate.ToString("dd MMMM yyyy")</p>
+                <p><strong>Saat:</strong> @_event.StartDate.ToString("HH:mm")</p>
+                <p><strong>Lokasyon:</strong> @_event.City</p>
+                <p><strong>Kategori:</strong> @_event.CategoryName</p>
+                <p><strong>Organizatör:</strong> EventPazar Topluluğu</p>
             </div>
-        </div>
-        <div class="em-event-actions">
-            <AuthorizeView>
-                <Authorized>
-                    <button class="em-btn-primary em-btn-lg">🎟 Bilet Al</button>
-                </Authorized>
-                <NotAuthorized>
-                    <a href="/login" class="em-btn-primary em-btn-lg">Giriş Yap ve Bilet Al</a>
-                </NotAuthorized>
-            </AuthorizeView>
-            <a href="/events" class="em-btn-outline">← Geri Dön</a>
-        </div>
+
+            <div class="mkt-map-placeholder">Harita alanı (MVP)</div>
+
+            <div class="mkt-cta-row">
+                <button class="mkt-btn mkt-btn-primary">Bilet Al</button>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(_info))
+            {
+                <p class="mkt-muted">@_info</p>
+            }
+
+            <section class="mkt-detail-block">
+                <h3>Mesaj Gönder</h3>
+                <div class="mkt-form-grid">
+                    <input class="em-input" placeholder="Adınız" @bind="_senderName" />
+                    <input class="em-input" placeholder="E-posta" @bind="_senderEmail" />
+                    <textarea class="em-input mkt-full" placeholder="Mesajınız" @bind="_messageText"></textarea>
+                    <button type="button" class="mkt-btn mkt-btn-ghost mkt-full" @onclick="SendMessageAsync">Mesajı Gönder</button>
+                </div>
+            </section>
+
+            <section class="mkt-detail-block">
+                <h3>Açıklama</h3>
+                <p>@_event.Description</p>
+            </section>
+
+            <section class="mkt-detail-block">
+                <h3>Galeri</h3>
+                @if (_gallery.Any())
+                {
+                    <div class="mkt-gallery-grid">
+                        @foreach (var image in _gallery)
+                        {
+                            <img src="@image.ImageUrl" alt="@image.Caption" class="mkt-gallery-image" />
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="mkt-muted">Galeri görseli henüz eklenmedi.</p>
+                }
+            </section>
+
+            <section class="mkt-detail-block">
+                <h3>Yorumlar</h3>
+                <div class="mkt-form-grid">
+                    <input class="em-input" placeholder="Adınız" @bind="_commentName" />
+                    <textarea class="em-input mkt-full" placeholder="Yorumunuz" @bind="_commentText"></textarea>
+                    <button type="button" class="mkt-btn mkt-btn-ghost mkt-full" @onclick="AddCommentAsync">Yorum Ekle</button>
+                </div>
+
+                @if (_comments.Any())
+                {
+                    <div class="mkt-comments-list">
+                        @foreach (var comment in _comments)
+                        {
+                            <article class="mkt-comment-item">
+                                <strong>@comment.DisplayName</strong>
+                                <small>@comment.CreatedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</small>
+                                <p>@comment.Content</p>
+                            </article>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="mkt-muted">Bu etkinlik için henüz yorum yok.</p>
+                }
+            </section>
+        </article>
+
+        <aside class="mkt-detail-sidebar">
+            <section>
+                <h4>Sponsorlu Etkinlikler</h4>
+                @foreach (var item in _sponsored)
+                {
+                    <a href="/events/@item.Id" class="mkt-side-link">@item.Title</a>
+                }
+            </section>
+
+            <section>
+                <h4>Benzer Etkinlikler</h4>
+                @foreach (var item in _similar)
+                {
+                    <a href="/events/@item.Id" class="mkt-side-link">@item.Title</a>
+                }
+            </section>
+
+            <BannerAd
+                Title="@(_detailSidebarAd?.Title ?? "Sidebar Reklam")"
+                Subtitle="@(_detailSidebarAd?.Subtitle ?? "300x250")"
+                Height="250px" />
+        </aside>
     </div>
 }
 
 @code {
     [Parameter] public Guid Id { get; set; }
     private EventDetailModel? _event;
+    private List<EventListItemModel> _sponsored = [];
+    private List<EventListItemModel> _similar = [];
+    private List<EventCommentModel> _comments = [];
+    private List<EventGalleryItemModel> _gallery = [];
+    private string _commentName = string.Empty;
+    private string _commentText = string.Empty;
+    private string _senderName = string.Empty;
+    private string _senderEmail = string.Empty;
+    private string _messageText = string.Empty;
+    private string _info = string.Empty;
+    private AdvertisementSlotModel? _detailSidebarAd;
     private bool _loading = true;
 
     protected override async Task OnInitializedAsync()
     {
         _event = await Api.GetEventByIdAsync(Id);
+
+        if (_event is not null)
+        {
+            var featured = await Api.GetEventsAsync(isFeatured: true, isApproved: true, page: 1, pageSize: 4);
+            _sponsored = featured?.Items.Where(x => x.Id != Id).Take(3).ToList() ?? [];
+
+            var similar = await Api.GetEventsAsync(city: _event.City, isApproved: true, page: 1, pageSize: 6);
+            _similar = similar?.Items.Where(x => x.Id != Id).Take(3).ToList() ?? [];
+
+            var interactions = await Api.GetEventInteractionsAsync(Id);
+            _comments = interactions?.Comments ?? [];
+            _gallery = interactions?.Gallery ?? [];
+
+            var ads = await Api.GetPublicAdSlotsAsync("detail-sidebar");
+            _detailSidebarAd = ads.OrderBy(x => x.Priority).FirstOrDefault();
+        }
+
         _loading = false;
+    }
+
+    private async Task AddCommentAsync()
+    {
+        _info = string.Empty;
+        if (string.IsNullOrWhiteSpace(_commentName) || string.IsNullOrWhiteSpace(_commentText))
+        {
+            _info = "Yorum için ad ve içerik gerekli.";
+            return;
+        }
+
+        var ok = await Api.AddEventCommentAsync(Id, _commentName.Trim(), _commentText.Trim());
+        _info = ok ? "Yorum gönderildi." : "Yorum gönderilemedi.";
+
+        if (ok)
+        {
+            _commentText = string.Empty;
+            var interactions = await Api.GetEventInteractionsAsync(Id);
+            _comments = interactions?.Comments ?? [];
+        }
+    }
+
+    private async Task SendMessageAsync()
+    {
+        _info = string.Empty;
+        if (string.IsNullOrWhiteSpace(_senderName) || string.IsNullOrWhiteSpace(_senderEmail) || string.IsNullOrWhiteSpace(_messageText))
+        {
+            _info = "Mesaj için ad, e-posta ve içerik gerekli.";
+            return;
+        }
+
+        var ok = await Api.SendEventMessageAsync(Id, _senderName.Trim(), _senderEmail.Trim(), _messageText.Trim());
+        _info = ok ? "Mesaj organizatöre iletildi." : "Mesaj gönderilemedi.";
+        if (ok)
+        {
+            _messageText = string.Empty;
+        }
     }
 }

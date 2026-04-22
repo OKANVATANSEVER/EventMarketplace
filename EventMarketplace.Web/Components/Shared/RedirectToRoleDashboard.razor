@@ -1,0 +1,27 @@
+@using Microsoft.AspNetCore.Components.Authorization
+@inject NavigationManager NavigationManager
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        var authState = AuthenticationStateTask is null
+            ? null
+            : await AuthenticationStateTask;
+
+        var user = authState?.User;
+        var target = user?.IsInRole("Admin") == true
+            ? "/admin/dashboard"
+            : user?.IsInRole("Organizer") == true
+                ? "/organizer/dashboard"
+                : "/account/dashboard";
+
+        NavigationManager.NavigateTo(target, forceLoad: false);
+    }
+}

@@ -1,0 +1,10 @@
+<div class="mkt-banner-ad" style="min-height:@Height">
+    <p>@Title</p>
+    <span>@Subtitle</span>
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = "Reklam Alanı";
+    [Parameter] public string Subtitle { get; set; } = "728x90 Banner";
+    [Parameter] public string Height { get; set; } = "90px";
+}

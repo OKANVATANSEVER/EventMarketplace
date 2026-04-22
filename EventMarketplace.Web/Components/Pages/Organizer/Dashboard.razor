@@ -1,0 +1,324 @@
+@page "/organizer/dashboard"
+@layout MainLayout
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Organizer,Admin")]
+@inject ApiClient Api
+
+<PageTitle>İlan Ver - Organizer Dashboard</PageTitle>
+
+<section class="mkt-section">
+    <h1>Organizer Dashboard</h1>
+    <div class="mkt-dashboard-grid">
+        <article class="mkt-widget">
+            <h3>Yeni Etkinlik Ekle</h3>
+            <p>Yeni etkinlik ilanı oluştur ve vitrine taşı.</p>
+        </article>
+        <article class="mkt-widget">
+            <h3>Aktif İlanlarım</h3>
+            <p>@_myEvents.Count(x => x.IsApproved) aktif ilan</p>
+        </article>
+        <article class="mkt-widget">
+            <h3>Reklam Slotlarım</h3>
+            <p>@_myAds.Count reklam slotu</p>
+        </article>
+        <article class="mkt-widget">
+            <h3>İstatistikler</h3>
+            <p>Toplam ilan: @_myEvents.Count</p>
+        </article>
+        <article class="mkt-widget">
+            <h3>Hesap Ayarları</h3>
+            <p>Profil, şifre ve bildirim tercihleri</p>
+        </article>
+    </div>
+</section>
+
+<section class="mkt-section">
+    <h2>Etkinlik Ekle Formu</h2>
+    @if (!string.IsNullOrWhiteSpace(_info))
+    {
+        <p class="mkt-muted">@_info</p>
+    }
+    <div class="mkt-form-grid">
+        <input class="em-input" placeholder="Başlık" @bind="_title" />
+        <select class="em-select" @bind="_categoryId">
+            <option value="">Kategori</option>
+            @foreach (var category in _categories)
+            {
+                <option value="@category.Id">@category.Name</option>
+            }
+        </select>
+        <input class="em-input" type="datetime-local" @bind="_startDate" />
+        <input class="em-input" type="datetime-local" @bind="_endDate" />
+        <input class="em-input" placeholder="Lokasyon" @bind="_city" />
+        <input class="em-input" type="number" min="0" step="0.01" placeholder="Bilet Fiyatı" @bind="_price" />
+        <select class="em-select" @bind="_selectedShowcase">
+            <option>Vitrin Seçeneği</option>
+            <option>Yok</option>
+            <option>Bronze</option>
+            <option>Silver</option>
+            <option>Gold</option>
+        </select>
+        <textarea class="em-input mkt-full" placeholder="Açıklama" @bind="_description"></textarea>
+        <input class="em-input mkt-full" placeholder="Görsel URL'leri (virgül ile)" @bind="_galleryCsv" />
+        <button type="button" class="mkt-btn mkt-btn-primary mkt-full" @onclick="SubmitAsync" disabled="@_saving">Etkinliği Yayınla</button>
+    </div>
+</section>
+
+@if (_myEvents.Any())
+{
+    <section class="mkt-section">
+        <h2>Etkinliklerim</h2>
+        <table class="em-table">
+            <thead>
+                <tr>
+                    <th>Baslik</th>
+                    <th>Sehir</th>
+                    <th>Fiyat</th>
+                    <th>Onay</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var ev in _myEvents)
+                {
+                    <tr>
+                        <td>@ev.Title</td>
+                        <td>@ev.City</td>
+                        <td>@ev.Price.ToString("C0")</td>
+                        <td>@(ev.IsApproved ? "Evet" : "Hayir")</td>
+                        <td>
+                            <button type="button" class="em-btn-outline" @onclick="() => LoadEventToFormAsync(ev)">Duzenle</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </section>
+}
+
+<section class="mkt-section">
+    <h2>Reklam Slotlarim</h2>
+    <div class="mkt-form-grid">
+        <input class="em-input" placeholder="Placement (home-hero)" @bind="_adPlacement" />
+        <input class="em-input" placeholder="Baslik" @bind="_adTitle" />
+        <input class="em-input mkt-full" placeholder="Alt Baslik" @bind="_adSubtitle" />
+        <input class="em-input" type="number" min="0" @bind="_adPriority" />
+        <input class="em-input" type="datetime-local" @bind="_adStart" />
+        <input class="em-input" type="datetime-local" @bind="_adEnd" />
+        <button type="button" class="mkt-btn mkt-btn-primary mkt-full" @onclick="SaveAdAsync">@(_editingAdId is null ? "Reklam Ekle" : "Reklami Guncelle")</button>
+    </div>
+
+    @if (_myAds.Any())
+    {
+        <table class="em-table">
+            <thead>
+                <tr>
+                    <th>Placement</th>
+                    <th>Baslik</th>
+                    <th>Oncelik</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var ad in _myAds)
+                {
+                    <tr>
+                        <td>@ad.Placement</td>
+                        <td>@ad.Title</td>
+                        <td>@ad.Priority</td>
+                        <td>
+                            <button type="button" class="em-btn-outline" @onclick="() => LoadAdToForm(ad)">Duzenle</button>
+                            <button type="button" class="em-btn-outline" @onclick="() => DeleteAdAsync(ad.Id)">Sil</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</section>
+
+<AccountSettingsPanel />
+
+@code {
+    private List<CategoryModel> _categories = [];
+    private List<OrganizerEventModel> _myEvents = [];
+    private List<AdvertisementSlotModel> _myAds = [];
+    private string _title = string.Empty;
+    private string _description = string.Empty;
+    private string _city = string.Empty;
+    private decimal _price;
+    private string _categoryId = string.Empty;
+    private string _selectedShowcase = "Yok";
+    private string _galleryCsv = string.Empty;
+    private DateTime _startDate = DateTime.Now.AddDays(1);
+    private DateTime _endDate = DateTime.Now.AddDays(1).AddHours(3);
+    private string _info = string.Empty;
+    private bool _saving;
+    private Guid? _editingEventId;
+
+    private Guid? _editingAdId;
+    private string _adPlacement = "home-hero";
+    private string _adTitle = string.Empty;
+    private string _adSubtitle = string.Empty;
+    private int _adPriority = 1;
+    private DateTime? _adStart;
+    private DateTime? _adEnd;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _categories = await Api.GetCategoriesAsync();
+        await RefreshAsync();
+    }
+
+    private async Task RefreshAsync()
+    {
+        _myEvents = await Api.GetMyOrganizerEventsAsync();
+        _myAds = await Api.GetMyOrganizerAdSlotsAsync();
+    }
+
+    private async Task SubmitAsync()
+    {
+        _info = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(_title)
+            || string.IsNullOrWhiteSpace(_description)
+            || string.IsNullOrWhiteSpace(_city)
+            || string.IsNullOrWhiteSpace(_categoryId)
+            || _endDate <= _startDate)
+        {
+            _info = "Lutfen form alanlarini kontrol edin.";
+            return;
+        }
+
+        _saving = true;
+
+        var isFeatured = _selectedShowcase is "Bronze" or "Silver" or "Gold";
+        var parsedCategory = Guid.Parse(_categoryId);
+
+        bool ok;
+        if (_editingEventId is null)
+        {
+            var create = await Api.CreateEventAsync(
+                _title,
+                _description,
+                _price,
+                _startDate,
+                _endDate,
+                _city,
+                parsedCategory,
+                isFeatured,
+                false);
+
+            ok = create.Success;
+            if (!ok)
+                _info = string.IsNullOrWhiteSpace(create.Error) ? "Etkinlik olusturulamadi." : create.Error;
+        }
+        else
+        {
+            ok = await Api.UpdateMyOrganizerEventAsync(
+                _editingEventId.Value,
+                _title,
+                _description,
+                _price,
+                _startDate,
+                _endDate,
+                _city,
+                parsedCategory,
+                isFeatured);
+
+            if (!ok)
+                _info = "Etkinlik guncellenemedi.";
+        }
+
+        if (!ok)
+        {
+            _saving = false;
+            return;
+        }
+
+        var latest = await Api.GetEventsAsync(title: _title, page: 1, pageSize: 1);
+        var created = latest?.Items.FirstOrDefault();
+
+        if (created is not null && !string.IsNullOrWhiteSpace(_galleryCsv))
+        {
+            var links = _galleryCsv
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Take(8)
+                .ToList();
+
+            for (var i = 0; i < links.Count; i++)
+            {
+                await Api.AddGalleryItemAsync(created.Id, links[i], null, i + 1);
+            }
+        }
+
+        _info = _editingEventId is null
+            ? "Etkinlik kaydedildi. Admin onayi sonrasinda yayina alinacaktir."
+            : "Etkinlik guncellendi.";
+
+        _editingEventId = null;
+        await RefreshAsync();
+        _saving = false;
+    }
+
+    private async Task LoadEventToFormAsync(OrganizerEventModel ev)
+    {
+        var details = await Api.GetEventByIdAsync(ev.Id);
+        _editingEventId = ev.Id;
+        _title = ev.Title;
+        _description = details?.Description ?? string.Empty;
+        _city = ev.City;
+        _price = ev.Price;
+        _startDate = ev.StartDate;
+        _endDate = ev.EndDate;
+        _categoryId = ev.CategoryId.ToString();
+        _selectedShowcase = ev.IsFeatured ? "Gold" : "Yok";
+    }
+
+    private void LoadAdToForm(AdvertisementSlotModel ad)
+    {
+        _editingAdId = ad.Id;
+        _adPlacement = ad.Placement;
+        _adTitle = ad.Title;
+        _adSubtitle = ad.Subtitle;
+        _adPriority = ad.Priority;
+        _adStart = ad.StartDateUtc?.ToLocalTime();
+        _adEnd = ad.EndDateUtc?.ToLocalTime();
+    }
+
+    private async Task SaveAdAsync()
+    {
+        var startUtc = _adStart?.ToUniversalTime();
+        var endUtc = _adEnd?.ToUniversalTime();
+
+        bool ok;
+        if (_editingAdId is null)
+        {
+            ok = await Api.CreateMyOrganizerAdSlotAsync(_adPlacement, _adTitle, _adSubtitle, null, null, true, _adPriority, startUtc, endUtc);
+            _info = ok ? "Reklam slotu eklendi." : "Reklam slotu eklenemedi.";
+        }
+        else
+        {
+            ok = await Api.UpdateMyOrganizerAdSlotAsync(_editingAdId.Value, _adPlacement, _adTitle, _adSubtitle, null, null, true, _adPriority, startUtc, endUtc);
+            _info = ok ? "Reklam slotu guncellendi." : "Reklam slotu guncellenemedi.";
+        }
+
+        if (!ok) return;
+
+        _editingAdId = null;
+        _adTitle = string.Empty;
+        _adSubtitle = string.Empty;
+        _adPriority = 1;
+        _adStart = null;
+        _adEnd = null;
+        await RefreshAsync();
+    }
+
+    private async Task DeleteAdAsync(Guid id)
+    {
+        var ok = await Api.DeleteMyOrganizerAdSlotAsync(id);
+        _info = ok ? "Reklam slotu silindi." : "Silme basarisiz.";
+        if (ok)
+            await RefreshAsync();
+    }
+}

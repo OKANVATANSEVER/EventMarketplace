@@ -204,4 +204,345 @@ public sealed class ApiClient(HttpClient http, TokenStore tokenStore)
         var response = await http.PutAsJsonAsync($"api/admin/members/{userId}/status", body, Json, ct);
         return response.IsSuccessStatusCode;
     }
+
+    // ── CONTENT (public) ───────────────────────────────────────────────────
+
+    public async Task<SitePageContentModel?> GetSitePageAsync(string slug, CancellationToken ct = default)
+    {
+        var response = await http.GetAsync($"api/content/pages/{slug}", ct);
+        if (!response.IsSuccessStatusCode) return null;
+
+        var envelope = await response.Content
+            .ReadFromJsonAsync<ApiEnvelope<SitePageContentModel>>(Json, ct);
+        return envelope?.Data;
+    }
+
+    public async Task<List<AdvertisementSlotModel>> GetPublicAdSlotsAsync(string? placement = null, CancellationToken ct = default)
+    {
+        var url = string.IsNullOrWhiteSpace(placement)
+            ? "api/content/ad-slots"
+            : $"api/content/ad-slots?placement={Uri.EscapeDataString(placement)}";
+
+        var response = await http.GetAsync(url, ct);
+        if (!response.IsSuccessStatusCode) return [];
+
+        var envelope = await response.Content
+            .ReadFromJsonAsync<ApiEnvelope<List<AdvertisementSlotModel>>>(Json, ct);
+        return envelope?.Data ?? [];
+    }
+
+    public async Task<List<PublicFeaturedEventModel>> GetPublicFeaturedAsync(string placement, CancellationToken ct = default)
+    {
+        var response = await http.GetAsync($"api/content/featured?placement={Uri.EscapeDataString(placement)}", ct);
+        if (!response.IsSuccessStatusCode) return [];
+
+        var envelope = await response.Content
+            .ReadFromJsonAsync<ApiEnvelope<List<PublicFeaturedEventModel>>>(Json, ct);
+        return envelope?.Data ?? [];
+    }
+
+    public async Task<EventInteractionsModel?> GetEventInteractionsAsync(Guid eventId, CancellationToken ct = default)
+    {
+        var response = await http.GetAsync($"api/content/events/{eventId}/interactions", ct);
+        if (!response.IsSuccessStatusCode) return null;
+
+        var envelope = await response.Content
+            .ReadFromJsonAsync<ApiEnvelope<EventInteractionsModel>>(Json, ct);
+        return envelope?.Data;
+    }
+
+    public async Task<bool> AddEventCommentAsync(Guid eventId, string displayName, string content, CancellationToken ct = default)
+    {
+        var body = new { displayName, content };
+        var response = await http.PostAsJsonAsync($"api/content/events/{eventId}/comments", body, Json, ct);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> SendEventMessageAsync(
+        Guid eventId,
+        string senderName,
+        string senderEmail,
+        string messageText,
+        CancellationToken ct = default)
+    {
+        var body = new { senderName, senderEmail, messageText };
+        var response = await http.PostAsJsonAsync($"api/content/events/{eventId}/messages", body, Json, ct);
+        return response.IsSuccessStatusCode;
+    }
+
+    // ── CONTENT (admin) ────────────────────────────────────────────────────
+
+    public async Task<SitePageContentModel?> GetAdminSitePageAsync(string slug, CancellationToken ct = default)
+    {
+        AttachAuth();
+        var response = await http.GetAsync($"api/admin/site-pages/{slug}", ct);
+        if (!response.IsSuccessStatusCode) return null;
+
+        var envelope = await response.Content
+            .ReadFromJsonAsync<ApiEnvelope<SitePageContentModel>>(Json, ct);
+        return envelope?.Data;
+    }
+
+    public async Task<bool> UpsertAdminSitePageAsync(string slug, string title, string body, CancellationToken ct = default)
+    {
+        AttachAuth();
+        var response = await http.PutAsJsonAsync($"api/admin/site-pages/{slug}", new { title, body }, Json, ct);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<List<AdvertisementSlotModel>> GetAdminAdSlotsAsync(CancellationToken ct = default)
+    {
+        AttachAuth();
+        var response = await http.GetAsync("api/admin/ad-slots", ct);
+        if (!response.IsSuccessStatusCode) return [];
+
+        var envelope = await response.Content
+            .ReadFromJsonAsync<ApiEnvelope<List<AdvertisementSlotModel>>>(Json, ct);
+        return envelope?.Data ?? [];
+    }
+
+    public async Task<bool> CreateAdSlotAsync(
+        string placement,
+        string title,
+        string subtitle,
+        string? linkUrl,
+        string? imageUrl,
+        bool isActive,
+        int priority,
+        DateTime? startDateUtc,
+        DateTime? endDateUtc,
+        CancellationToken ct = default)
+    {
+        AttachAuth();
+        var body = new { placement, title, subtitle, linkUrl, imageUrl, isActive, priority, startDateUtc, endDateUtc };
+        var response = await http.PostAsJsonAsync("api/admin/ad-slots", body, Json, ct);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> DeleteAdSlotAsync(Guid id, CancellationToken ct = default)
+    {
+        AttachAuth();
+        var response = await http.DeleteAsync($"api/admin/ad-slots/{id}", ct);
+        return response.IsSuccessStatusCode;
+    }
+
+
+    public async Task<bool> UpdateAdSlotAsync(
+        Guid id,
+        string placement,
+        string title,
+        string subtitle,
+        string? linkUrl,
+        string? imageUrl,
+        bool isActive,
+        int priority,
+        DateTime? startDateUtc,
+        DateTime? endDateUtc,
+        CancellationToken ct = default)
+    {
+        AttachAuth();
+        var body = new { placement, title, subtitle, linkUrl, imageUrl, isActive, priority, startDateUtc, endDateUtc };
+        var response = await http.PutAsJsonAsync($"api/admin/ad-slots/{id}", body, Json, ct);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<List<FeaturedListingModel>> GetFeaturedListingsAdminAsync(CancellationToken ct = default)
+    {
+        AttachAuth();
+        var response = await http.GetAsync("api/admin/featured-listings", ct);
+        if (!response.IsSuccessStatusCode) return [];
+
+        var envelope = await response.Content
+            .ReadFromJsonAsync<ApiEnvelope<List<FeaturedListingModel>>>(Json, ct);
+        return envelope?.Data ?? [];
+    }
+
+    public async Task<bool> CreateFeaturedListingAsync(
+        Guid eventId,
+        string placement,
+        int priority,
+        DateTime? expiresAtUtc,
+        bool isActive,
+        CancellationToken ct = default)
+    {
+        AttachAuth();
+        var body = new { eventId, placement, priority, expiresAtUtc, isActive };
+        var response = await http.PostAsJsonAsync("api/admin/featured-listings", body, Json, ct);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> DeleteFeaturedListingAsync(Guid id, CancellationToken ct = default)
+    {
+        AttachAuth();
+        var response = await http.DeleteAsync($"api/admin/featured-listings/{id}", ct);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> UpdateFeaturedListingAsync(
+        Guid id,
+        Guid eventId,
+        string placement,
+        int priority,
+        DateTime? expiresAtUtc,
+        bool isActive,
+        CancellationToken ct = default)
+    {
+        AttachAuth();
+        var body = new { eventId, placement, priority, expiresAtUtc, isActive };
+        var response = await http.PutAsJsonAsync($"api/admin/featured-listings/{id}", body, Json, ct);
+        return response.IsSuccessStatusCode;
+    }
+
+
+    public async Task<List<AdminInboxMessageModel>> GetAdminInboxAsync(CancellationToken ct = default)
+    {
+        AttachAuth();
+        var response = await http.GetAsync("api/admin/messages/inbox", ct);
+        if (!response.IsSuccessStatusCode) return [];
+
+        var envelope = await response.Content
+            .ReadFromJsonAsync<ApiEnvelope<List<AdminInboxMessageModel>>>(Json, ct);
+        return envelope?.Data ?? [];
+    }
+
+    public async Task<bool> AddGalleryItemAsync(Guid eventId, string imageUrl, string? caption, int sortOrder, CancellationToken ct = default)
+    {
+        AttachAuth();
+        var body = new { imageUrl, caption, sortOrder };
+        var response = await http.PostAsJsonAsync($"api/admin/events/{eventId}/gallery", body, Json, ct);
+        return response.IsSuccessStatusCode;
+    }
+
+    // ── ACCOUNT ───────────────────────────────────────────────────────────
+
+    public async Task<AccountProfileModel?> GetMyProfileAsync(CancellationToken ct = default)
+    {
+        AttachAuth();
+        var response = await http.GetAsync("api/account/profile", ct);
+        if (!response.IsSuccessStatusCode) return null;
+
+        var envelope = await response.Content
+            .ReadFromJsonAsync<ApiEnvelope<AccountProfileModel>>(Json, ct);
+        return envelope?.Data;
+    }
+
+    public async Task<bool> UpdateMyProfileAsync(string firstName, string lastName, string? phoneNumber, CancellationToken ct = default)
+    {
+        AttachAuth();
+        var response = await http.PutAsJsonAsync("api/account/profile", new { firstName, lastName, phoneNumber }, Json, ct);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> ChangeMyPasswordAsync(string currentPassword, string newPassword, CancellationToken ct = default)
+    {
+        AttachAuth();
+        var response = await http.PostAsJsonAsync("api/account/change-password", new { currentPassword, newPassword }, Json, ct);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<List<NotificationPreferenceModel>> GetMyPreferencesAsync(CancellationToken ct = default)
+    {
+        AttachAuth();
+        var response = await http.GetAsync("api/account/preferences", ct);
+        if (!response.IsSuccessStatusCode) return [];
+
+        var envelope = await response.Content
+            .ReadFromJsonAsync<ApiEnvelope<List<NotificationPreferenceModel>>>(Json, ct);
+        return envelope?.Data ?? [];
+    }
+
+    public async Task<bool> SaveMyPreferencesAsync(List<NotificationPreferenceModel> prefs, CancellationToken ct = default)
+    {
+        AttachAuth();
+        var body = prefs.Select(x => new { categoryId = x.CategoryId, wantsEmail = x.WantsEmail, wantsSms = x.WantsSms }).ToList();
+        var response = await http.PutAsJsonAsync("api/account/preferences", body, Json, ct);
+        return response.IsSuccessStatusCode;
+    }
+
+    // ── ORGANIZER ─────────────────────────────────────────────────────────
+
+    public async Task<List<OrganizerEventModel>> GetMyOrganizerEventsAsync(CancellationToken ct = default)
+    {
+        AttachAuth();
+        var response = await http.GetAsync("api/organizer/events", ct);
+        if (!response.IsSuccessStatusCode) return [];
+
+        var envelope = await response.Content
+            .ReadFromJsonAsync<ApiEnvelope<List<OrganizerEventModel>>>(Json, ct);
+        return envelope?.Data ?? [];
+    }
+
+    public async Task<bool> UpdateMyOrganizerEventAsync(
+        Guid id,
+        string title,
+        string description,
+        decimal price,
+        DateTime startDate,
+        DateTime endDate,
+        string city,
+        Guid categoryId,
+        bool isFeatured,
+        CancellationToken ct = default)
+    {
+        AttachAuth();
+        var body = new { title, description, price, startDate, endDate, city, categoryId, isFeatured };
+        var response = await http.PutAsJsonAsync($"api/organizer/events/{id}", body, Json, ct);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<List<AdvertisementSlotModel>> GetMyOrganizerAdSlotsAsync(CancellationToken ct = default)
+    {
+        AttachAuth();
+        var response = await http.GetAsync("api/organizer/ad-slots", ct);
+        if (!response.IsSuccessStatusCode) return [];
+
+        var envelope = await response.Content
+            .ReadFromJsonAsync<ApiEnvelope<List<AdvertisementSlotModel>>>(Json, ct);
+        return envelope?.Data ?? [];
+    }
+
+    public async Task<bool> CreateMyOrganizerAdSlotAsync(
+        string placement,
+        string title,
+        string subtitle,
+        string? linkUrl,
+        string? imageUrl,
+        bool isActive,
+        int priority,
+        DateTime? startDateUtc,
+        DateTime? endDateUtc,
+        CancellationToken ct = default)
+    {
+        AttachAuth();
+        var body = new { placement, title, subtitle, linkUrl, imageUrl, isActive, priority, startDateUtc, endDateUtc };
+        var response = await http.PostAsJsonAsync("api/organizer/ad-slots", body, Json, ct);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> UpdateMyOrganizerAdSlotAsync(
+        Guid id,
+        string placement,
+        string title,
+        string subtitle,
+        string? linkUrl,
+        string? imageUrl,
+        bool isActive,
+        int priority,
+        DateTime? startDateUtc,
+        DateTime? endDateUtc,
+        CancellationToken ct = default)
+    {
+        AttachAuth();
+        var body = new { placement, title, subtitle, linkUrl, imageUrl, isActive, priority, startDateUtc, endDateUtc };
+        var response = await http.PutAsJsonAsync($"api/organizer/ad-slots/{id}", body, Json, ct);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> DeleteMyOrganizerAdSlotAsync(Guid id, CancellationToken ct = default)
+    {
+        AttachAuth();
+        var response = await http.DeleteAsync($"api/organizer/ad-slots/{id}", ct);
+        return response.IsSuccessStatusCode;
+    }
+
 }

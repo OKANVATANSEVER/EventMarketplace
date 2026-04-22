@@ -1,0 +1,20 @@
+@page "/privacy"
+@layout MainLayout
+@rendermode InteractiveServer
+@inject ApiClient Api
+
+<PageTitle>Gizlilik - EventPazar</PageTitle>
+
+<section class="mkt-section">
+    <h1>@(_page?.Title ?? "Gizlilik")</h1>
+    <p class="mkt-muted">@(_page?.Body ?? "Icerik yukleniyor...")</p>
+</section>
+
+@code {
+    private SitePageContentModel? _page;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _page = await Api.GetSitePageAsync("privacy");
+    }
+}

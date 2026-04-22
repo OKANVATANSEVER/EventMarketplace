@@ -61,6 +61,82 @@ public sealed class DevelopmentDataSeeder(ApplicationDbContext dbContext)
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+
+        await SeedContentAsync(cancellationToken);
+    }
+
+    private async Task SeedContentAsync(CancellationToken cancellationToken)
+    {
+        if (!await dbContext.SitePageContents.AnyAsync(cancellationToken))
+        {
+            dbContext.SitePageContents.AddRange(
+                new SitePageContent
+                {
+                    Slug = "about",
+                    Title = "Hakkimizda",
+                    Body = "EventPazar, sehirdeki etkinlikleri tek bir pazaryerinde bulusturan bir platformdur.",
+                    UpdatedAtUtc = DateTime.UtcNow
+                },
+                new SitePageContent
+                {
+                    Slug = "contact",
+                    Title = "Iletisim",
+                    Body = "Bize ulasmak icin hello@eventpazar.com adresine e-posta gonderebilirsiniz.",
+                    UpdatedAtUtc = DateTime.UtcNow
+                },
+                new SitePageContent
+                {
+                    Slug = "privacy",
+                    Title = "Gizlilik",
+                    Body = "Kullanici verileri KVKK ve ilgili mevzuat kapsaminda korunur.",
+                    UpdatedAtUtc = DateTime.UtcNow
+                });
+        }
+
+        if (!await dbContext.AdvertisementSlots.AnyAsync(cancellationToken))
+        {
+            dbContext.AdvertisementSlots.AddRange(
+                new AdvertisementSlot
+                {
+                    Placement = "home-hero",
+                    Title = "728x90 Banner Reklami",
+                    Subtitle = "Markani ana sayfa hero altinda goster",
+                    Priority = 1,
+                    IsActive = true
+                },
+                new AdvertisementSlot
+                {
+                    Placement = "detail-sidebar",
+                    Title = "Detay Sidebar Reklami",
+                    Subtitle = "Etkinlik detayinda hedefli gorunum",
+                    Priority = 1,
+                    IsActive = true
+                });
+        }
+
+        if (!await dbContext.FeaturedListings.AnyAsync(cancellationToken))
+        {
+            var events = await dbContext.Events
+                .Where(x => x.IsApproved)
+                .OrderBy(x => x.StartDate)
+                .Take(5)
+                .Select(x => x.Id)
+                .ToListAsync(cancellationToken);
+
+            for (var i = 0; i < events.Count; i++)
+            {
+                dbContext.FeaturedListings.Add(new FeaturedListing
+                {
+                    EventId = events[i],
+                    Placement = "home-carousel",
+                    Priority = i + 1,
+                    IsActive = true,
+                    ExpiresAtUtc = DateTime.UtcNow.AddDays(30)
+                });
+            }
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     private async Task<List<Category>> EnsureCategoriesAsync(CancellationToken cancellationToken)

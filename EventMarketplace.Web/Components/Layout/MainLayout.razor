@@ -1,4 +1,5 @@
 @inherits LayoutComponentBase
+@using Microsoft.AspNetCore.Components.Authorization
 
 <div class="em-layout">
     <NavMenu />
@@ -7,4 +8,21 @@
             @Body
         </div>
     </main>
+    <footer class="mkt-footer">
+        <div class="mkt-footer-inner">
+            <a href="/about">Hakkımızda</a>
+            <AuthorizeView>
+                <Authorized Context="authCtx">
+                    <AuthorizeView Roles="Organizer,Admin">
+                        <a href="/advertise">Reklam Ver</a>
+                    </AuthorizeView>
+                </Authorized>
+                <NotAuthorized>
+                    <a href="/advertise">Reklam Ver</a>
+                </NotAuthorized>
+            </AuthorizeView>
+            <a href="/contact">İletişim</a>
+            <a href="/privacy">Gizlilik</a>
+        </div>
+    </footer>
 </div>

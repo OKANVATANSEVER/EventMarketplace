@@ -4,6 +4,7 @@
 @inject ApiClient Api
 @inject JwtAuthStateProvider AuthProvider
 @inject NavigationManager Nav
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
 
 <PageTitle>Giriş Yap</PageTitle>
 
@@ -53,6 +54,16 @@
     private string _errorMessage = string.Empty;
     private bool _loading;
 
+    protected override async Task OnInitializedAsync()
+    {
+        var rememberedEmail = await LocalStorage.GetItemAsStringAsync("em_remember_email");
+        if (!string.IsNullOrWhiteSpace(rememberedEmail))
+        {
+            _model.Email = rememberedEmail;
+            _model.RememberMe = true;
+        }
+    }
+
     private async Task HandleLogin()
     {
         _loading = true;
@@ -70,6 +81,11 @@
 
             await AuthProvider.LoginAsync(token, _model.RememberMe);
 
+            if (_model.RememberMe)
+                await LocalStorage.SetItemAsStringAsync("em_remember_email", _model.Email);
+            else
+                await LocalStorage.RemoveItemAsync("em_remember_email");
+
             var claims = JwtAuthStateProvider.ParseClaims(token);
             var roleClaims = claims
                 .Where(c => c.Type == System.Security.Claims.ClaimTypes.Role ||
@@ -80,11 +96,12 @@
                 .ToList();
 
             var isAdmin = roleClaims.Any(r => r.Equals("Admin", StringComparison.OrdinalIgnoreCase));
+            var isOrganizer = roleClaims.Any(r => r.Equals("Organizer", StringComparison.OrdinalIgnoreCase));
 
             var requestedUrl = NormalizeReturnUrl(ReturnUrl);
             var destination = !string.IsNullOrWhiteSpace(requestedUrl)
                 ? requestedUrl
-                : (isAdmin ? "/admin/dashboard" : "/");
+                : (isAdmin ? "/admin/dashboard" : isOrganizer ? "/organizer/dashboard" : "/account/dashboard");
 
             Nav.NavigateTo(destination, forceLoad: false);
         }

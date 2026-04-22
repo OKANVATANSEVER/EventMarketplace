@@ -1,0 +1,145 @@
+@inject ApiClient Api
+
+@if (_loading)
+{
+    <div class="em-loading"><div class="em-spinner"></div><p>Hesap bilgileri yukleniyor...</p></div>
+}
+else
+{
+    @if (!string.IsNullOrWhiteSpace(_info))
+    {
+        <p class="mkt-muted">@_info</p>
+    }
+
+    <section class="mkt-section">
+        <h3>Kisisel Bilgiler</h3>
+        <div class="mkt-form-grid">
+            <input class="em-input" placeholder="Ad" @bind="_firstName" />
+            <input class="em-input" placeholder="Soyad" @bind="_lastName" />
+            <input class="em-input" placeholder="Telefon" @bind="_phone" />
+            <input class="em-input" value="@_email" disabled />
+            <button type="button" class="mkt-btn mkt-btn-primary mkt-full" @onclick="SaveProfileAsync">Profili Kaydet</button>
+        </div>
+    </section>
+
+    <section class="mkt-section">
+        <h3>Bildirim Tercihleri (Kategori Bazli)</h3>
+        @if (_prefs.Any())
+        {
+            <table class="em-table">
+                <thead>
+                    <tr>
+                        <th>Kategori</th>
+                        <th>E-posta</th>
+                        <th>SMS</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in _prefs)
+                    {
+                        <tr>
+                            <td>@p.CategoryName</td>
+                            <td><input type="checkbox" @bind="p.WantsEmail" /></td>
+                            <td><input type="checkbox" @bind="p.WantsSms" /></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            <button type="button" class="mkt-btn mkt-btn-primary" @onclick="SavePrefsAsync">Tercihleri Kaydet</button>
+        }
+        else
+        {
+            <p class="mkt-muted">Kategori bulunamadi.</p>
+        }
+    </section>
+
+    <section class="mkt-section">
+        <h3>Sifre Degistir</h3>
+        <div class="mkt-form-grid">
+            <input type="password" class="em-input" placeholder="Mevcut sifre" @bind="_currentPassword" />
+            <input type="password" class="em-input" placeholder="Yeni sifre" @bind="_newPassword" />
+            <button type="button" class="mkt-btn mkt-btn-ghost mkt-full" @onclick="ChangePasswordAsync">Sifreyi Guncelle</button>
+        </div>
+    </section>
+}
+
+@code {
+    private bool _loading = true;
+    private string _info = string.Empty;
+    private string _firstName = string.Empty;
+    private string _lastName = string.Empty;
+    private string _email = string.Empty;
+    private string? _phone = string.Empty;
+    private string _currentPassword = string.Empty;
+    private string _newPassword = string.Empty;
+    private List<PreferenceRow> _prefs = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var profileTask = Api.GetMyProfileAsync();
+        var prefsTask = Api.GetMyPreferencesAsync();
+        await Task.WhenAll(profileTask, prefsTask);
+
+        var profile = profileTask.Result;
+        if (profile is not null)
+        {
+            _firstName = profile.FirstName;
+            _lastName = profile.LastName;
+            _email = profile.Email;
+            _phone = profile.PhoneNumber;
+        }
+
+        _prefs = prefsTask.Result
+            .Select(x => new PreferenceRow
+            {
+                CategoryId = x.CategoryId,
+                CategoryName = x.CategoryName,
+                WantsEmail = x.WantsEmail,
+                WantsSms = x.WantsSms
+            })
+            .ToList();
+        _loading = false;
+    }
+
+    private async Task SaveProfileAsync()
+    {
+        var ok = await Api.UpdateMyProfileAsync(_firstName, _lastName, _phone);
+        _info = ok ? "Profil guncellendi." : "Profil guncellenemedi.";
+    }
+
+    private async Task SavePrefsAsync()
+    {
+        var payload = _prefs
+            .Select(x => new NotificationPreferenceModel(x.CategoryId, x.CategoryName, x.WantsEmail, x.WantsSms))
+            .ToList();
+
+        var ok = await Api.SaveMyPreferencesAsync(payload);
+        _info = ok ? "Bildirim tercihleri kaydedildi." : "Tercihler kaydedilemedi.";
+    }
+
+    private async Task ChangePasswordAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_currentPassword) || string.IsNullOrWhiteSpace(_newPassword))
+        {
+            _info = "Sifre alanlarini doldurun.";
+            return;
+        }
+
+        var ok = await Api.ChangeMyPasswordAsync(_currentPassword, _newPassword);
+        _info = ok ? "Sifre guncellendi." : "Sifre guncellenemedi.";
+
+        if (ok)
+        {
+            _currentPassword = string.Empty;
+            _newPassword = string.Empty;
+        }
+    }
+
+    private sealed class PreferenceRow
+    {
+        public Guid CategoryId { get; set; }
+        public string CategoryName { get; set; } = string.Empty;
+        public bool WantsEmail { get; set; }
+        public bool WantsSms { get; set; }
+    }
+}

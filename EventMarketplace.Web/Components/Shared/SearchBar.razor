@@ -1,0 +1,38 @@
+@inject NavigationManager Nav
+
+<div class="mkt-search-bar">
+    <input class="mkt-search-input" placeholder="Konser ara..." @bind="Query" />
+    <select class="mkt-search-select" @bind="City">
+        <option value="">Şehir</option>
+        <option>İstanbul</option>
+        <option>Ankara</option>
+        <option>İzmir</option>
+        <option>Bursa</option>
+    </select>
+    <input class="mkt-search-date" type="date" @bind="Date" />
+    <button class="mkt-btn mkt-btn-primary" @onclick="SubmitAsync">Ara</button>
+</div>
+
+@code {
+    [Parameter] public string Query { get; set; } = string.Empty;
+    [Parameter] public string City { get; set; } = string.Empty;
+    [Parameter] public DateTime? Date { get; set; }
+    [Parameter] public EventCallback<string> OnSearch { get; set; }
+
+    private async Task SubmitAsync()
+    {
+        var target = $"/events?title={Uri.EscapeDataString(Query)}&city={Uri.EscapeDataString(City)}";
+        if (Date.HasValue)
+        {
+            target += $"&date={Date.Value:yyyy-MM-dd}";
+        }
+
+        if (OnSearch.HasDelegate)
+        {
+            await OnSearch.InvokeAsync(target);
+            return;
+        }
+
+        Nav.NavigateTo(target);
+    }
+}

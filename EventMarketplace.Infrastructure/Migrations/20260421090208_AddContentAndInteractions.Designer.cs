@@ -4,6 +4,7 @@ using EventMarketplace.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace EventMarketplace.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260421090208_AddContentAndInteractions")]
+    partial class AddContentAndInteractions
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -27,10 +30,6 @@ namespace EventMarketplace.Infrastructure.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
-
-                    b.Property<string>("CreatedByUserId")
-                        .HasMaxLength(450)
-                        .HasColumnType("varchar(450)");
 
                     b.Property<DateTime?>("EndDateUtc")
                         .HasColumnType("datetime(6)");
@@ -352,45 +351,6 @@ namespace EventMarketplace.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("SitePageContents");
-                });
-
-            modelBuilder.Entity("EventMarketplace.Domain.Entities.UserCategoryPreference", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<Guid>("CategoryId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<string>("UserAppId")
-                        .HasColumnType("varchar(255)");
-
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasMaxLength(450)
-                        .HasColumnType("varchar(450)");
-
-                    b.Property<bool>("WantsEmail")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(true);
-
-                    b.Property<bool>("WantsSms")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(false);
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CategoryId");
-
-                    b.HasIndex("UserAppId");
-
-                    b.HasIndex("UserId", "CategoryId")
-                        .IsUnique();
-
-                    b.ToTable("UserCategoryPreferences");
                 });
 
             modelBuilder.Entity("EventMarketplace.Infrastructure.Identity.RefreshToken", b =>
@@ -750,21 +710,6 @@ namespace EventMarketplace.Infrastructure.Migrations
                     b.Navigation("Event");
                 });
 
-            modelBuilder.Entity("EventMarketplace.Domain.Entities.UserCategoryPreference", b =>
-                {
-                    b.HasOne("EventMarketplace.Domain.Entities.Category", "Category")
-                        .WithMany()
-                        .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("EventMarketplace.Infrastructure.Identity.UserApp", null)
-                        .WithMany("CategoryPreferences")
-                        .HasForeignKey("UserAppId");
-
-                    b.Navigation("Category");
-                });
-
             modelBuilder.Entity("EventMarketplace.Infrastructure.Identity.RefreshToken", b =>
                 {
                     b.HasOne("EventMarketplace.Infrastructure.Identity.UserApp", "User")
@@ -845,8 +790,6 @@ namespace EventMarketplace.Infrastructure.Migrations
 
             modelBuilder.Entity("EventMarketplace.Infrastructure.Identity.UserApp", b =>
                 {
-                    b.Navigation("CategoryPreferences");
-
                     b.Navigation("OrganizedEvents");
 
                     b.Navigation("RefreshTokens");

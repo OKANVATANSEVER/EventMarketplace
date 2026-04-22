@@ -12,4 +12,5 @@ public class UserApp : IdentityUser
     // Navigation properties
     public ICollection<Event>? OrganizedEvents { get; set; }
     public ICollection<RefreshToken>? RefreshTokens { get; set; }
+    public ICollection<UserCategoryPreference>? CategoryPreferences { get; set; }
 }

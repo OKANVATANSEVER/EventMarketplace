@@ -4,19 +4,37 @@
 
 <header class="em-header">
     <div class="em-header-inner">
-        <a class="em-logo" href="/">🎟 EventMarketplace</a>
-        <nav class="em-nav">
+        <a class="em-logo" href="/">EventPazar</a>
+        <div class="mkt-header-search">
+            <select class="mkt-header-city">
+                <option>Şehir Seç</option>
+                <option>İstanbul</option>
+                <option>Ankara</option>
+                <option>İzmir</option>
+            </select>
+            <input class="mkt-header-input" placeholder="Konser, tiyatro, workshop ara" />
+        </div>
+        <nav class="em-nav mkt-nav">
             <a href="/events">Etkinlikler</a>
             <AuthorizeView>
                 <Authorized Context="authCtx">
+                    <AuthorizeView Roles="Organizer,Admin">
+                        <a href="/advertise">Reklam Ver</a>
+                    </AuthorizeView>
                     <AuthorizeView Roles="Admin">
                         <a href="/admin/dashboard" class="em-nav-admin">Admin Panel</a>
                     </AuthorizeView>
+                    <AuthorizeView Roles="Organizer,Admin">
+                        <a class="mkt-pill-link" href="/organizer/dashboard">Organizer Panel</a>
+                    </AuthorizeView>
+                    <a href="/account/dashboard">Hesabım</a>
+                    <a href="/account/settings">Ayarlar</a>
                     <button @onclick="HandleLogout" class="em-btn-link">Çıkış (@authCtx.User.Identity?.Name)</button>
                 </Authorized>
                 <NotAuthorized>
+                    <a href="/advertise">Reklam Ver</a>
                     <a href="/login">Giriş Yap</a>
-                    <a href="/register" class="em-btn-primary">Kayıt Ol</a>
+                    <a href="/register" class="mkt-pill-link">Kayıt Ol</a>
                 </NotAuthorized>
             </AuthorizeView>
         </nav>

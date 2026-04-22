@@ -1,0 +1,13 @@
+@page "/account/dashboard"
+@layout MainLayout
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+
+<PageTitle>Uye Dashboard</PageTitle>
+
+<section class="mkt-section">
+    <h1>Uye Dashboard</h1>
+    <p class="mkt-muted">Ilan verme yetkiniz yok. Profil ve bildirim tercihlerinizi buradan yonetin.</p>
+</section>
+
+<AccountSettingsPanel />

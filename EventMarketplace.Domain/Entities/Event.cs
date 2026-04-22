@@ -16,4 +16,8 @@ public class Event
 
     // Navigation properties
     public Category? Category { get; set; }
+    public ICollection<FeaturedListing>? FeaturedListings { get; set; }
+    public ICollection<EventComment>? Comments { get; set; }
+    public ICollection<EventGalleryItem>? GalleryItems { get; set; }
+    public ICollection<EventMessage>? Messages { get; set; }
 }

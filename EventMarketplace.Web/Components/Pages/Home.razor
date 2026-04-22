@@ -1,39 +1,124 @@
 @page "/home"
+@page "/"
 @layout MainLayout
 @rendermode InteractiveServer
 @inject ApiClient Api
 
-<PageTitle>EventMarketplace – Etkinlikleri Keşfet</PageTitle>
+<PageTitle>EventPazar - Bugün ne yapmak istersin?</PageTitle>
 
-<section class="em-hero">
-    <div class="em-hero-content">
-        <h1>🎟 Etkinlikleri Keşfet</h1>
-        <p>Konserlere, konferanslara, seminerlere ve daha fazlasına katıl.</p>
-        <a href="/events" class="em-btn-primary em-btn-lg">Tüm Etkinlikler</a>
+<section class="mkt-hero">
+    <div class="mkt-hero-grid">
+        <div>
+            <p class="mkt-kicker">Etkinlik Pazaryeri</p>
+            <h1>Bugün ne yapmak istersin?</h1>
+            <p>Konser, tiyatro, workshop ve aile etkinliklerini tek bir akışta keşfet.</p>
+            <SearchBar />
+        </div>
+        <div class="mkt-hero-side">
+            <p>Canlı şehir trafiği</p>
+            <h3>@_liveCounter aktif ilan</h3>
+            <small>Son 24 saatte @_newCount yeni etkinlik</small>
+        </div>
     </div>
 </section>
 
-@if (_featured.Any())
-{
-    <section class="em-section">
-        <div class="em-section-inner">
-            <h2>⭐ Öne Çıkan Etkinlikler</h2>
-            <div class="em-events-grid">
-                @foreach (var ev in _featured)
-                {
-                    <EventCard Event="ev" />
-                }
-            </div>
-        </div>
-    </section>
-}
+<section class="mkt-section">
+    <div class="mkt-section-header">
+        <h2>Öne Çıkan Etkinlikler</h2>
+        <span>Sponsorlu Carousel</span>
+    </div>
+    <FeaturedCarousel Events="_featured" />
+</section>
+
+<section class="mkt-section">
+    <div class="mkt-section-header">
+        <h2>Bugün Etkinlikler</h2>
+    </div>
+    <div class="mkt-chip-row">
+        @foreach (var category in _todayCategories)
+        {
+            <a href="/events?title=@category" class="mkt-chip">@category</a>
+        }
+    </div>
+</section>
+
+<section class="mkt-section">
+    <div class="mkt-section-header">
+        <h2>Bu Akşam Ne Var?</h2>
+    </div>
+    <div class="mkt-card-grid">
+        @foreach (var ev in _tonight)
+        {
+            <EventCard Event="ev" />
+        }
+    </div>
+</section>
+
+<section class="mkt-section">
+    <div class="mkt-section-header">
+        <h2>Popüler Mekanlar</h2>
+    </div>
+    <div class="mkt-venues-grid">
+        <VenueCard Name="Volkswagen Arena" City="İstanbul" Tag="Konser" />
+        <VenueCard Name="CerModern" City="Ankara" Tag="Sergi" />
+        <VenueCard Name="Ahmed Adnan Saygun" City="İzmir" Tag="Klasik Müzik" />
+        <VenueCard Name="DasDas" City="İstanbul" Tag="Tiyatro" />
+    </div>
+</section>
+
+<section class="mkt-section">
+    <BannerAd
+        Title="@(_heroBanner?.Title ?? "Reklam Alanı")"
+        Subtitle="@(_heroBanner?.Subtitle ?? "728x90 Banner")" />
+</section>
+
+<section class="mkt-section">
+    <div class="mkt-section-header">
+        <h2>Son Eklenen Etkinlik İlanları</h2>
+    </div>
+    <div class="mkt-card-grid">
+        @foreach (var ev in _latest)
+        {
+            <EventCard Event="ev" />
+        }
+    </div>
+</section>
+
 
 @code {
-    private List<EventListItemModel> _featured = [];
+    private List<PublicFeaturedEventModel> _featured = [];
+    private List<EventListItemModel> _tonight = [];
+    private List<EventListItemModel> _latest = [];
+    private readonly string[] _todayCategories = ["Konserler", "Tiyatro", "Workshop", "Çocuk"];
+    private int _liveCounter;
+    private int _newCount;
+    private AdvertisementSlotModel? _heroBanner;
 
     protected override async Task OnInitializedAsync()
     {
-        var result = await Api.GetEventsAsync(isFeatured: true, page: 1, pageSize: 6);
-        _featured = result?.Items.ToList() ?? [];
+        var featuredResult = await Api.GetPublicFeaturedAsync("home-carousel");
+        var recentResult = await Api.GetEventsAsync(isApproved: true, page: 1, pageSize: 24);
+        var heroAds = await Api.GetPublicAdSlotsAsync("home-hero");
+
+        _featured = featuredResult.OrderBy(x => x.StartDate).ToList();
+        _heroBanner = heroAds.OrderBy(x => x.Priority).FirstOrDefault();
+
+        var all = recentResult?.Items.OrderByDescending(x => x.StartDate).ToList() ?? [];
+        _latest = all.Take(6).ToList();
+
+        var now = DateTime.Now;
+        _tonight = all
+            .Where(x => x.StartDate.Date == now.Date)
+            .OrderBy(x => x.StartDate)
+            .Take(6)
+            .ToList();
+
+        if (_tonight.Count == 0)
+        {
+            _tonight = all.Take(6).ToList();
+        }
+
+        _liveCounter = all.Count;
+        _newCount = all.Count(x => x.StartDate >= now.AddDays(-1));
     }
 }

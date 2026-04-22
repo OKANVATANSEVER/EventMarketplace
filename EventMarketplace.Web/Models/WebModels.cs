@@ -67,3 +67,89 @@ public sealed record ApiEnvelope<T>(
     T? Data,
     int StatusCode,
     bool IsSuccessful);
+
+public sealed record SitePageContentModel(
+    string Slug,
+    string Title,
+    string Body,
+    DateTime UpdatedAtUtc);
+
+public sealed record AdvertisementSlotModel(
+    Guid Id,
+    string Placement,
+    string Title,
+    string Subtitle,
+    string? LinkUrl,
+    string? ImageUrl,
+    bool IsActive,
+    int Priority,
+    DateTime? StartDateUtc,
+    DateTime? EndDateUtc);
+
+public sealed record FeaturedListingModel(
+    Guid Id,
+    Guid EventId,
+    string EventTitle,
+    string Placement,
+    int Priority,
+    DateTime? ExpiresAtUtc,
+    bool IsActive);
+
+public sealed record PublicFeaturedEventModel(
+    Guid EventId,
+    string EventTitle,
+    string City,
+    DateTime StartDate,
+    decimal Price,
+    string CategoryName);
+
+public sealed record EventCommentModel(
+    Guid Id,
+    string DisplayName,
+    string Content,
+    DateTime CreatedAtUtc);
+
+public sealed record EventGalleryItemModel(
+    Guid Id,
+    string ImageUrl,
+    string? Caption,
+    int SortOrder);
+
+public sealed record EventInteractionsModel(
+    List<EventCommentModel> Comments,
+    List<EventGalleryItemModel> Gallery);
+
+public sealed record AccountProfileModel(
+    string Id,
+    string FirstName,
+    string LastName,
+    string Email,
+    string? PhoneNumber,
+    List<string> Roles);
+
+public sealed record NotificationPreferenceModel(
+    Guid CategoryId,
+    string CategoryName,
+    bool WantsEmail,
+    bool WantsSms);
+
+public sealed record OrganizerEventModel(
+    Guid Id,
+    string Title,
+    decimal Price,
+    DateTime StartDate,
+    DateTime EndDate,
+    string City,
+    Guid CategoryId,
+    string CategoryName,
+    bool IsFeatured,
+    bool IsApproved);
+
+public sealed record AdminInboxMessageModel(
+    Guid Id,
+    Guid EventId,
+    string EventTitle,
+    string SenderName,
+    string SenderEmail,
+    string MessageText,
+    DateTime CreatedAtUtc);

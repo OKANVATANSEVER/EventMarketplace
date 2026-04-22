@@ -1,6 +1,7 @@
 @using EventMarketplace.Web.Models
 
 <div class="em-event-card">
+    <div class="mkt-card-poster"></div>
     @if (Event.IsFeatured)
     {
         <div class="em-event-card-featured">⭐ Öne Çıkan</div>
@@ -17,7 +18,10 @@
         <span class="em-event-price">
             @(Event.Price == 0 ? "Ücretsiz" : $"₺{Event.Price:N2}")
         </span>
-        <a href="/events/@Event.Id" class="em-btn-outline em-btn-sm">İncele →</a>
+        <div class="mkt-card-actions">
+            <button type="button" class="mkt-favorite">❤</button>
+            <a href="/events/@Event.Id" class="em-btn-outline em-btn-sm">İncele</a>
+        </div>
     </div>
 </div>
 

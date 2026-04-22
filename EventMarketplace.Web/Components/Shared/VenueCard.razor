@@ -1,0 +1,12 @@
+<article class="mkt-venue-card">
+    <div class="mkt-venue-thumb"></div>
+    <h4>@Name</h4>
+    <p>@City</p>
+    <span>@Tag</span>
+</article>
+
+@code {
+    [Parameter] public string Name { get; set; } = string.Empty;
+    [Parameter] public string City { get; set; } = string.Empty;
+    [Parameter] public string Tag { get; set; } = string.Empty;
+}

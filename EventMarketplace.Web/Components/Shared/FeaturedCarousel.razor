@@ -1,0 +1,27 @@
+@using EventMarketplace.Web.Models
+
+<div class="mkt-carousel">
+    @if (Events.Any())
+    {
+        @foreach (var ev in Events)
+        {
+            <article class="mkt-carousel-card">
+                <div class="mkt-carousel-poster"></div>
+                <div class="mkt-carousel-body">
+                    <p class="mkt-muted">Sponsorlu</p>
+                    <h3>@ev.EventTitle</h3>
+                    <p>@ev.StartDate.ToString("dd MMM") - @ev.City</p>
+                    <a class="mkt-link" href="/events/@ev.EventId">Detayı Gör</a>
+                </div>
+            </article>
+        }
+    }
+    else
+    {
+        <p class="mkt-empty">Henüz sponsorlu etkinlik bulunmuyor.</p>
+    }
+</div>
+
+@code {
+    [Parameter] public IReadOnlyList<PublicFeaturedEventModel> Events { get; set; } = [];
+}

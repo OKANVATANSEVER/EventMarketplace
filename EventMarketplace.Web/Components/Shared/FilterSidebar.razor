@@ -1,0 +1,86 @@
+@using EventMarketplace.Web.Models
+
+<aside class="mkt-filter-sidebar">
+    <h3>Filtrele</h3>
+
+    <label>Şehir</label>
+    <input class="em-input" value="@City" @oninput="OnCityChanged" placeholder="İstanbul" />
+
+    <label>Tarih</label>
+    <input class="em-input" type="date" value="@Date" @onchange="OnDateChanged" />
+
+    <label>Kategori</label>
+    <select class="em-select" value="@CategoryId" @onchange="OnCategoryChanged">
+        <option value="">Tümü</option>
+        @foreach (var category in Categories)
+        {
+            <option value="@category.Id">@category.Name</option>
+        }
+    </select>
+
+    <label>Ücretsiz</label>
+    <select class="em-select" value="@FreeOnly" @onchange="OnFreeChanged">
+        <option value="">Tümü</option>
+        <option value="true">Sadece ücretsiz</option>
+    </select>
+
+    <label>Fiyat Aralığı</label>
+    <select class="em-select" value="@PriceRange" @onchange="OnPriceChanged">
+        <option value="">Fark etmez</option>
+        <option value="0-250">0 - 250 TL</option>
+        <option value="250-750">250 - 750 TL</option>
+        <option value="750+">750 TL+</option>
+    </select>
+
+    <label>Bugün / Bu Hafta</label>
+    <select class="em-select" value="@Period" @onchange="OnPeriodChanged">
+        <option value="">Tümü</option>
+        <option value="today">Bugün</option>
+        <option value="week">Bu hafta</option>
+    </select>
+
+    <label>Sponsorlu</label>
+    <select class="em-select" value="@FeaturedOnly" @onchange="OnFeaturedChanged">
+        <option value="">Tümü</option>
+        <option value="true">Sadece sponsorlu</option>
+    </select>
+</aside>
+
+@code {
+    [Parameter] public IReadOnlyList<CategoryModel> Categories { get; set; } = [];
+    [Parameter] public string City { get; set; } = string.Empty;
+    [Parameter] public string Date { get; set; } = string.Empty;
+    [Parameter] public string CategoryId { get; set; } = string.Empty;
+    [Parameter] public string FreeOnly { get; set; } = string.Empty;
+    [Parameter] public string PriceRange { get; set; } = string.Empty;
+    [Parameter] public string Period { get; set; } = string.Empty;
+    [Parameter] public string FeaturedOnly { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> CityChanged { get; set; }
+    [Parameter] public EventCallback<string> DateChanged { get; set; }
+    [Parameter] public EventCallback<string> CategoryIdChanged { get; set; }
+    [Parameter] public EventCallback<string> FreeOnlyChanged { get; set; }
+    [Parameter] public EventCallback<string> PriceRangeChanged { get; set; }
+    [Parameter] public EventCallback<string> PeriodChanged { get; set; }
+    [Parameter] public EventCallback<string> FeaturedOnlyChanged { get; set; }
+
+    private Task OnCityChanged(ChangeEventArgs args)
+        => CityChanged.InvokeAsync(args.Value?.ToString() ?? string.Empty);
+
+    private Task OnDateChanged(ChangeEventArgs args)
+        => DateChanged.InvokeAsync(args.Value?.ToString() ?? string.Empty);
+
+    private Task OnCategoryChanged(ChangeEventArgs args)
+        => CategoryIdChanged.InvokeAsync(args.Value?.ToString() ?? string.Empty);
+
+    private Task OnFreeChanged(ChangeEventArgs args)
+        => FreeOnlyChanged.InvokeAsync(args.Value?.ToString() ?? string.Empty);
+
+    private Task OnPriceChanged(ChangeEventArgs args)
+        => PriceRangeChanged.InvokeAsync(args.Value?.ToString() ?? string.Empty);
+
+    private Task OnPeriodChanged(ChangeEventArgs args)
+        => PeriodChanged.InvokeAsync(args.Value?.ToString() ?? string.Empty);
+
+    private Task OnFeaturedChanged(ChangeEventArgs args)
+        => FeaturedOnlyChanged.InvokeAsync(args.Value?.ToString() ?? string.Empty);
+}
