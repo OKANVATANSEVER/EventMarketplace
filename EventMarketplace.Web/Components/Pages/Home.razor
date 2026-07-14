@@ -44,7 +44,7 @@
 {
 <section class="mkt-section">
     <div class="mkt-section-header">
-        <h2>Bu Akşam Ne Var?</h2>
+        <h2>En Yakın Hangi Etkinlikler ?</h2>
     </div>
     <div class="mkt-card-grid">
         @foreach (var ev in _tonight)
@@ -103,6 +103,7 @@
     private List<EventListItemModel> _latest = [];
     private List<PopularVenueModel> _popularVenues = [];
     private readonly string[] _todayCategories = ["Konserler", "Tiyatro", "Workshop", "Çocuk"];
+    //private readonly string[] _todayCategories = [];
     private int _liveCounter;
     private int _newCount;
     private AdvertisementSlotModel? _heroBanner;
@@ -124,12 +125,12 @@
         _tonight = all
             .Where(x => x.StartDate.Date == now.Date)
             .OrderBy(x => x.StartDate)
-            .Take(6)
+            .Take(8)
             .ToList();
 
         if (_tonight.Count == 0)
         {
-            //_tonight = all.Take(6).ToList();
+            _tonight = all.Take(8).OrderBy(x => x.StartDate).ToList();
         }
 
         _liveCounter = all.Count;

@@ -1,0 +1,19 @@
+# TODO LIST
+
+- [x] Analyze requirements
+- [x] Set up necessary files
+- [ ] Implement main functionality
+  - Define the endpoints for creating, reading, updating, and deleting tasks
+  - Implement authentication using JWT
+- [ ] Handle edge cases
+- [ ] Test the implementation
+- [ ] Verify results
+
+dotnet ef migrations add InitialCreate
+dotnet ef database update
+
+Add-Migration InitialCreate
+Update-Database
+
+dotnet ef migrations add setDATA    --project .\EventMarketplace.Infrastructure   --startup-project  EventMarketplace.API   
+dotnet ef database update      --project .\EventMarketplace.Infrastructure   --startup-project  EventMarketplace.API   
